@@ -1,0 +1,4 @@
+* Voxel Game in Raylib
+Currently untitled voxel game. More or less I want to experiment with some
+relatively simple graphical things. This repository should serve an additional
+purpose of providing a simple example of how to build a static /raylib/ project.
