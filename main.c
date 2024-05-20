@@ -11,8 +11,6 @@
 #define LOAD_PROC_INFO
 #include "proc.h"
 
-#include "voxel.h"
-
 #define CLOSE_WITH(CODE, MSG)                     \
   do {                                            \
     fprintf(stdout, "[INFO] %s() :: ", __func__); \
@@ -53,15 +51,15 @@ int main(void) {
                                                 100, 100));
   mdl_cb.materials[0].maps[MATERIAL_MAP_DIFFUSE].texture = txtr_cb;
 
-  Texture2D atlas   = LoadTexture("assets/blockatlas.png");
-  Model voxel_grass = voxel_model_from_atlas(atlas, (Rectangle []){
-      { 0, 0, 16, 16 },  // front
-      { 16, 0, 16, 16 }, // back
-      { 32, 0, 16, 16 }, // top
-      { 48, 0, 16, 16 }, // bottom
-      { 64, 0, 16, 16 }, // left
-      { 80, 0, 16, 16 }  // right
-    });
+  /* Texture2D atlas   = LoadTexture("assets/blockatlas.png"); */
+  /* Model voxel_grass = voxel_model_from_atlas(atlas, (Rectangle []){ */
+  /*     { 0, 0, 16, 16 },  // front */
+  /*     { 16, 0, 16, 16 }, // back */
+  /*     { 32, 0, 16, 16 }, // top */
+  /*     { 48, 0, 16, 16 }, // bottom */
+  /*     { 64, 0, 16, 16 }, // left */
+  /*     { 80, 0, 16, 16 }  // right */
+  /*   }); */
 
   Camera3D cam_scene = cam_init_scene();
 
@@ -75,7 +73,7 @@ int main(void) {
       ClearBackground(BLACK);
       BeginMode3D(cam_scene);
           DrawModel(mdl_cb, world_position, 0.5f, WHITE);
-          DrawModel(voxel_grass, world_position, 1.0f, WHITE);
+          /* DrawModel(voxel_grass, world_position, 1.0f, WHITE); */
           DrawSphere(my_position, 1.0f, BLUE);
         EndMode3D();
       PROC_INFO_DRAW(PROC_INFO_FLAG_ALL);
@@ -135,18 +133,4 @@ Texture2D txtr_gen_checkerboard(void) {
     }
   EndTextureMode();
   return target.texture;
-}
-
-void DrawBuilding(Vector3 *world, float x, float y,
-             float height, float width, Color c)
-{
-  DrawCubeV(Vector3Add(*world, (Vector3){x, height * 0.5f, y}),
-            (Vector3){width, height, width}, c);
-}
-
-void DrawBuildingL(Vector3 *world, float x, float y,
-             float height, float width, Color c)
-{
-  DrawCubeWiresV(Vector3Add(*world, (Vector3){x, height * 0.5f, y}),
-            (Vector3){width, height, width}, c);
 }
