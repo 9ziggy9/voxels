@@ -1,7 +1,9 @@
 CC=gcc
 CFLAGS=-Wall -Wextra -pedantic -fPIC
-RAYFLAGS=`pkg-config --cflags --libs raylib`
 EXE=./run
+RAYLIB_PATH=./raylib/build
+RAYFLAGS=-I$(RAYLIB_PATH)/src -L$(RAYLIB_PATH)/src -lraylib -lGL \
+				-lm -lpthread -ldl -lrt -lX11
 TRASH=$(EXE) libvoxel.so voxel.o
 
 ifdef MEM_TEST
@@ -21,6 +23,11 @@ libvoxel.so: voxel.o
 
 voxel.o: voxel.c
 	$(CC) $(CFLAGS) -c voxel.c
+
+install_raylib:
+	mkdir -p raylib/build
+	cd raylib/build && cmake .. -DBUILD_SHARED_LIBS=OFF
+	cd raylib/build && make
 
 clean:
 	rm -rf $(TRASH)
