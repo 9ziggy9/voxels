@@ -3,6 +3,6 @@
 #include <raylib.h>
 #include <string.h>
 
-Model voxel_model_from_atlas(Texture2D, Rectangle *);
+Mesh voxel_generate_min_mesh(void);
 
 #endif //VOXEL_H_

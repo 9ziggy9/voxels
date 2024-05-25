@@ -1,104 +1,90 @@
 #include "voxel.h"
-#define VOXEL_VERTS_PER_FACE 4
-#define VOXEL_NUM_FACES      6
+#include <raymath.h>
+#include <stdint.h>
 
-static Mesh voxel_generate_mesh(void) {
+#define VERT(N, V) mesh.vertices[N] = V
+#define IDX(N, I)  mesh.indices[N] = I
+
+/* NOTE:
+   This does not contain any information about surface normals and therefore
+   will not currently work for any light shading implementations. */
+Mesh voxel_generate_min_mesh(void) {
   Mesh mesh = { 0 };
+  mesh.triangleCount = 6;  // 3 faces, 2 triangles per face
+  mesh.vertexCount = 7;    // 7 vertices for 3 faces
 
-  mesh.vertexCount   = VOXEL_NUM_FACES * VOXEL_VERTS_PER_FACE;
-  mesh.triangleCount = 12;
+  mesh.vertices = (float *)    MemAlloc(3*mesh.vertexCount*sizeof(float));
+  mesh.indices  = (uint16_t *) MemAlloc(3*mesh.triangleCount*sizeof(uint16_t));
+  mesh.colors   = (uint8_t *)  MemAlloc(4*mesh.vertexCount*sizeof(uint8_t));
 
-  float vertices[] = {
-    -0.5f, -0.5f,  0.5f,  0.5f, -0.5f,  0.5f, // front
-     0.5f,  0.5f,  0.5f, -0.5f,  0.5f,  0.5f,
-    -0.5f, -0.5f, -0.5f, -0.5f,  0.5f, -0.5f, // back
-     0.5f,  0.5f, -0.5f,  0.5f, -0.5f, -0.5f,
-    -0.5f,  0.5f, -0.5f, -0.5f,  0.5f,  0.5f, // top
-     0.5f,  0.5f,  0.5f,  0.5f,  0.5f, -0.5f,
-    -0.5f, -0.5f, -0.5f,  0.5f, -0.5f, -0.5f, // bottom
-     0.5f, -0.5f,  0.5f, -0.5f, -0.5f,  0.5f,
-     0.5f, -0.5f, -0.5f,  0.5f,  0.5f, -0.5f, //right
-     0.5f,  0.5f,  0.5f,  0.5f, -0.5f,  0.5f,
-    -0.5f, -0.5f, -0.5f, -0.5f, -0.5f,  0.5f, // left
-    -0.5f,  0.5f,  0.5f, -0.5f,  0.5f, -0.5f,
-  };
-  float texcoords[] = {
-    0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 1.0f, 0.0f, 1.0f, // front
-    0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 1.0f, 0.0f, 1.0f, // back
-    0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 1.0f, 0.0f, 1.0f, // top
-    0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 1.0f, 0.0f, 1.0f, // bottom
-    0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 1.0f, 0.0f, 1.0f, //right
-    0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 1.0f, 0.0f, 1.0f, // left
-  };
-  float normals[] = {
-     0.0f,  0.0f,  1.0f,  0.0f,  0.0f,  1.0f, // front
-     0.0f,  0.0f,  1.0f,  0.0f,  0.0f,  1.0f,
-     0.0f,  0.0f, -1.0f,  0.0f,  0.0f, -1.0f, // back
-     0.0f,  0.0f, -1.0f,  0.0f,  0.0f, -1.0f,
-     0.0f,  1.0f,  0.0f,  0.0f,  1.0f,  0.0f, // top
-     0.0f,  1.0f,  0.0f,  0.0f,  1.0f,  0.0f,
-     0.0f, -1.0f,  0.0f,  0.0f, -1.0f,  0.0f, // bottom
-     0.0f, -1.0f,  0.0f,  0.0f, -1.0f,  0.0f,
-     1.0f,  0.0f,  0.0f,  1.0f,  0.0f,  0.0f, // right
-     1.0f,  0.0f,  0.0f,  1.0f,  0.0f,  0.0f,
-    -1.0f,  0.0f,  0.0f, -1.0f,  0.0f,  0.0f, // left
-    -1.0f,  0.0f,  0.0f, -1.0f,  0.0f,  0.0f,
-  };
-  unsigned short indices[] = {
-     0 ,  1 ,  2 ,  0 ,  2 ,  3 , // front
-     4 ,  5 ,  6 ,  4 ,  6 ,  7 , // back
-     8 ,  9 , 10 ,  8 , 10 , 11 , // top
-    12 , 13 , 14 , 12 , 14 , 15 , // bottom
-    16 , 17 , 18 , 16 , 18 , 19 , // right
-    20 , 21 , 22 , 20 , 22 , 23   // left
-  };
+  // Define the vertices
+  VERT(0, -0.5f); VERT(1,  1.0f); VERT(2,  0.5f);
+  VERT(3, -0.5f); VERT(4,  0.0f); VERT(5,  0.5f);
+  VERT(6,  0.5f); VERT(7,  0.0f); VERT(8,  0.5f);
+  VERT(9,  0.5f); VERT(10, 1.0f); VERT(11, 0.5f);
+  VERT(12, 0.5f); VERT(13, 0.0f); VERT(14,-0.5f);
+  VERT(15, 0.5f); VERT(16, 1.0f); VERT(17,-0.5f);
+  VERT(18,-0.5f); VERT(19, 1.0f); VERT(20,-0.5f);
 
-  mesh.vertices  = (float*)MemAlloc(mesh.vertexCount * 3 * sizeof(float));
-  mesh.texcoords = (float*)MemAlloc(mesh.vertexCount * 2 * sizeof(float));
-  mesh.normals   = (float*)MemAlloc(mesh.vertexCount * 3 * sizeof(float));
-  mesh.indices   = (unsigned short*)MemAlloc(mesh.triangleCount * 3 *
-                                             sizeof(unsigned short));
+  // Define the indices
+  IDX(0, 0);  IDX(1, 1);  IDX(2, 2);
+  IDX(3, 0);  IDX(4, 2);  IDX(5, 3);
+  IDX(6, 2);  IDX(7, 4);  IDX(8, 5);
+  IDX(9, 2);  IDX(10, 5); IDX(11, 3);
+  IDX(12, 0); IDX(13, 3); IDX(14, 5);
+  IDX(15, 0); IDX(16, 5); IDX(17, 6);
 
-  memcpy(mesh.vertices, vertices, mesh.vertexCount * 3 * sizeof(float));
-  memcpy(mesh.texcoords, texcoords, mesh.vertexCount * 2 * sizeof(float));
-  memcpy(mesh.normals, normals, mesh.vertexCount * 3 * sizeof(float));
-  memcpy(mesh.indices, indices, mesh.triangleCount * 3 * sizeof(unsigned short));
+  // Set the color of each vertex to green
+  for (int i = 0; i < mesh.vertexCount * 4; i += 4) {
+    mesh.colors[i] = 0;
+    mesh.colors[i + 1] = 255;
+    mesh.colors[i + 2] = 0;
+    mesh.colors[i + 3] = 255;
+  }
 
-  UploadMesh(&mesh, true);
+  UploadMesh(&mesh, false);
   return mesh;
 }
 
-static float *voxel_get_tex_coords(Rectangle rect) {
-  float *texcoords = (float *) MemAlloc(VOXEL_VERTS_PER_FACE * 2 *
-                                        sizeof(float));
-  texcoords[0] = rect.x;
-  texcoords[1] = rect.y;
-  texcoords[2] = rect.x + rect.width;
-  texcoords[3] = rect.y;
-  texcoords[4] = rect.x + rect.width;
-  texcoords[5] = rect.y + rect.height;
-  texcoords[6] = rect.x;
-  texcoords[7] = rect.y + rect.height;
-  return texcoords;
-}
+Mesh voxel_generate_full_mesh_no_normals(void) {
+  Mesh mesh = { 0 };
+  mesh.vertexCount = 8;    // 8 vertices for a cube
+  mesh.triangleCount = 12; // 6 faces, 2 triangles per face
 
-static void voxel_set_tex_coords(Mesh *mesh, Rectangle *rects) {
-  float *texcoords = (float *) MemAlloc(mesh->vertexCount * 2 * sizeof(float));
+  mesh.vertices = (float *)    MemAlloc(mesh.vertexCount * 3 * sizeof(float));
+  mesh.indices  = (uint16_t *) MemAlloc(mesh.triangleCount * 3 *
+                                       sizeof(uint16_t));
+  mesh.colors   = (uint8_t *)  MemAlloc(mesh.vertexCount * 4 * sizeof(uint8_t));
 
-  for (int i = 0; i < VOXEL_NUM_FACES; i++) {
-    float *face_texcoords = voxel_get_tex_coords(rects[i]);
-    for (int j = 0; j < VOXEL_VERTS_PER_FACE * 2; j++) {
-      texcoords[i * VOXEL_VERTS_PER_FACE * 2 + j] = face_texcoords[j];
-    }
-    MemFree(face_texcoords);
+  mesh.vertices[0] = -0.5f; mesh.vertices[1] = 0.0f; mesh.vertices[2] = -0.5f;
+  mesh.vertices[3] =  0.5f; mesh.vertices[4] = 0.0f; mesh.vertices[5] = -0.5f;
+  mesh.vertices[6] =  0.5f; mesh.vertices[7] = 1.0f; mesh.vertices[8] = -0.5f;
+  mesh.vertices[9] = -0.5f; mesh.vertices[10] = 1.0f; mesh.vertices[11] = -0.5f;
+  mesh.vertices[12] = -0.5f; mesh.vertices[13] = 0.0f; mesh.vertices[14] = 0.5f;
+  mesh.vertices[15] =  0.5f; mesh.vertices[16] = 0.0f; mesh.vertices[17] = 0.5f;
+  mesh.vertices[18] =  0.5f; mesh.vertices[19] = 1.0f; mesh.vertices[20] = 0.5f;
+  mesh.vertices[21] = -0.5f; mesh.vertices[22] = 1.0f; mesh.vertices[23] = 0.5f;
+
+  mesh.indices[0] = 0; mesh.indices[1] = 1; mesh.indices[2] = 2;
+  mesh.indices[3] = 2; mesh.indices[4] = 3; mesh.indices[5] = 0;
+  mesh.indices[6] = 1; mesh.indices[7] = 5; mesh.indices[8] = 6;
+  mesh.indices[9] = 6; mesh.indices[10] = 2; mesh.indices[11] = 1;
+  mesh.indices[12] = 5; mesh.indices[13] = 4; mesh.indices[14] = 7;
+  mesh.indices[15] = 7; mesh.indices[16] = 6; mesh.indices[17] = 5;
+  mesh.indices[18] = 4; mesh.indices[19] = 0; mesh.indices[20] = 3;
+  mesh.indices[21] = 3; mesh.indices[22] = 7; mesh.indices[23] = 4;
+  mesh.indices[24] = 4; mesh.indices[25] = 5; mesh.indices[26] = 1;
+  mesh.indices[27] = 1; mesh.indices[28] = 0; mesh.indices[29] = 4;
+  mesh.indices[30] = 7; mesh.indices[31] = 3; mesh.indices[32] = 2;
+  mesh.indices[33] = 2; mesh.indices[34] = 6; mesh.indices[35] = 7;
+
+  for (int i = 0; i < mesh.vertexCount * 4; i += 4) {
+    mesh.colors[i] = 0;
+    mesh.colors[i + 1] = 255;
+    mesh.colors[i + 2] = 0;
+    mesh.colors[i + 3] = 255;
   }
-  mesh->texcoords = texcoords;
-}
 
-Model voxel_model_from_atlas(Texture2D atlas, Rectangle *rects) {
-  Mesh mesh = voxel_generate_mesh();
-  voxel_set_tex_coords(&mesh, rects);
-  Model model = LoadModelFromMesh(mesh);
-  model.materials[0].maps[MATERIAL_MAP_DIFFUSE].texture = atlas;
-  return model;
+  UploadMesh(&mesh, false);
+  return mesh;
 }

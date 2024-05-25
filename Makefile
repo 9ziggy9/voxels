@@ -5,10 +5,6 @@ RAYLIB_STATIC_LIB=$(RAYLIB_PATH)/libraylib.a
 EXE=./run
 TRASH=$(EXE) libvoxel.so voxel.o
 
-ifdef MEM_TEST
-CFLAGS += -DMEM_TEST__
-endif
-
 .PHONY: clean install_raylib
 
 main: main.c libvoxel.so
