@@ -2,51 +2,53 @@
 #include <raymath.h>
 #include <stdint.h>
 
-#define VERT(N, V) mesh.vertices[N] = V
+#define VERT(N, X, Y, Z) \
+  mesh.vertices[N] = X; mesh.vertices[N+1] = Y; mesh.vertices[N+2] = Z
+
 #define IDX(N, I)  mesh.indices[N] = I
 
-/* NOTE:
-   This does not contain any information about surface normals and therefore
-   will not currently work for any light shading implementations. */
-Mesh voxel_generate_min_mesh(void) {
+Mesh voxel_generate_mesh_from_colors(Color *colors) {
   Mesh mesh = { 0 };
   mesh.triangleCount = 6;  // 3 faces, 2 triangles per face
-  mesh.vertexCount = 7;    // 7 vertices for 3 faces
+  mesh.vertexCount = 12;   // 4 vertices per face, 3 faces
 
   mesh.vertices = (float *)    MemAlloc(3*mesh.vertexCount*sizeof(float));
   mesh.indices  = (uint16_t *) MemAlloc(3*mesh.triangleCount*sizeof(uint16_t));
   mesh.colors   = (uint8_t *)  MemAlloc(4*mesh.vertexCount*sizeof(uint8_t));
 
-  // Define the vertices
-  VERT(0, -0.5f); VERT(1,  1.0f); VERT(2,  0.5f);
-  VERT(3, -0.5f); VERT(4,  0.0f); VERT(5,  0.5f);
-  VERT(6,  0.5f); VERT(7,  0.0f); VERT(8,  0.5f);
-  VERT(9,  0.5f); VERT(10, 1.0f); VERT(11, 0.5f);
-  VERT(12, 0.5f); VERT(13, 0.0f); VERT(14,-0.5f);
-  VERT(15, 0.5f); VERT(16, 1.0f); VERT(17,-0.5f);
-  VERT(18,-0.5f); VERT(19, 1.0f); VERT(20,-0.5f);
+  // four to a face
+  VERT(0, -0.5f, 0.0f, 0.5f);  VERT(3, 0.5f, 0.0f, 0.5f);
+  VERT(6, 0.5f, 1.0f, 0.5f);   VERT(9, -0.5f, 1.0f, 0.5f);
+  VERT(12, 0.5f, 0.0f, 0.5f);  VERT(15, 0.5f, 0.0f, -0.5f);
+  VERT(18, 0.5f, 1.0f, -0.5f); VERT(21, 0.5f, 1.0f, 0.5f);
+  VERT(24, -0.5f, 1.0f, 0.5f); VERT(27, 0.5f, 1.0f, 0.5f);
+  VERT(30, 0.5f, 1.0f, -0.5f); VERT(33, -0.5f, 1.0f, -0.5f);
 
-  // Define the indices
-  IDX(0, 0);  IDX(1, 1);  IDX(2, 2);
-  IDX(3, 0);  IDX(4, 2);  IDX(5, 3);
-  IDX(6, 2);  IDX(7, 4);  IDX(8, 5);
-  IDX(9, 2);  IDX(10, 5); IDX(11, 3);
-  IDX(12, 0); IDX(13, 3); IDX(14, 5);
-  IDX(15, 0); IDX(16, 5); IDX(17, 6);
+  // six to a face
+  IDX(0, 0);  IDX(1, 1);   IDX(2, 2);
+  IDX(3, 0);  IDX(4, 2);   IDX(5, 3);
+  IDX(6, 4);  IDX(7, 5);   IDX(8, 6);
+  IDX(9, 4);  IDX(10, 6);  IDX(11, 7);
+  IDX(12, 8); IDX(13, 9);  IDX(14, 10);
+  IDX(15, 8); IDX(16, 10); IDX(17, 11);
 
-  // Set the color of each vertex to green
-  for (int i = 0; i < mesh.vertexCount * 4; i += 4) {
-    mesh.colors[i] = 0;
-    mesh.colors[i + 1] = 255;
-    mesh.colors[i + 2] = 0;
-    mesh.colors[i + 3] = 255;
+  for (int face = 0; face < 3; face++) {
+    Color color = colors[face];
+    for (int vert = 0; vert < 4; vert++) {
+      int idx = face * 4 + vert;
+      mesh.colors[idx * 4]     = color.r;
+      mesh.colors[idx * 4 + 1] = color.g;
+      mesh.colors[idx * 4 + 2] = color.b;
+      mesh.colors[idx * 4 + 3] = color.a;
+    }
   }
 
   UploadMesh(&mesh, false);
   return mesh;
 }
 
-Mesh voxel_generate_full_mesh_no_normals(void) {
+// keeping for experimental purposes
+Mesh _voxel_generate_full_mesh_no_normals(void) {
   Mesh mesh = { 0 };
   mesh.vertexCount = 8;    // 8 vertices for a cube
   mesh.triangleCount = 12; // 6 faces, 2 triangles per face

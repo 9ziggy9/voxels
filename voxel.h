@@ -3,6 +3,6 @@
 #include <raylib.h>
 #include <string.h>
 
-Mesh voxel_generate_min_mesh(void);
+Mesh voxel_generate_mesh_from_colors(Color *colors);
 
 #endif //VOXEL_H_

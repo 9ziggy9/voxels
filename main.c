@@ -47,7 +47,11 @@ int main(void) {
   SetExitKey(KEY_NULL);
 
   Model mdl_cb = mdl_gen_checkerboard();
-  Model mdl_test = LoadModelFromMesh(voxel_generate_min_mesh());
+  Model mdl_test = LoadModelFromMesh(voxel_generate_mesh_from_colors((Color []){
+        (Color){255, 0, 0, 255},
+        (Color){0, 255, 0, 255},
+        (Color){0, 0, 255, 255},
+      }));
   Camera3D cam_scene = cam_init_scene();
 
   Vector3 my_position = {0, 1.0f, 0};
@@ -61,7 +65,7 @@ int main(void) {
       ClearBackground(BLACK);
       BeginMode3D(cam_scene);
           DrawModel(mdl_cb, world_position, 1.0f, WHITE);
-          DrawModel(mdl_test, world_position, SZ_VOXEL, RED);
+          DrawModel(mdl_test, world_position, SZ_VOXEL, WHITE);
           DrawModel(mdl_test, Vector3Add(world_position,
                                          (Vector3){0,SZ_VOXEL,0}),
                     SZ_VOXEL, WHITE);
