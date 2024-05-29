@@ -46,13 +46,12 @@ int main(void) {
   Model mdl_cb = mdl_gen_checkerboard();
   VOXEL_MODELS_INIT();
 
-
   Vector3 player_position = {0};
   Vector3 world_position = WORLD_ORIGIN;
 
   Camera3D cam_scene = cam_init_scene(&player_position);
 
-  VoxelScape vxl_scape = voxel_gen_noise_perlin(20, 20, 69420, fd_linear);
+  VoxelScape vxl_scape = voxel_gen_noise_perlin(40, 40, 69420, fd_linear);
 
   while(!WindowShouldClose()) {
     poll_key_presses(&cam_scene, &world_position);
@@ -62,7 +61,6 @@ int main(void) {
       BeginMode3D(cam_scene);
         DrawModel(mdl_cb, world_position, 1.0f, WHITE);
         draw_voxel_scape(&vxl_scape, &world_position);
-        DrawSphere(player_position, 10.0f, RED);
       EndMode3D();
       PROC_INFO_DRAW(PROC_INFO_FLAG_ALL);
     EndDrawing();
@@ -109,7 +107,7 @@ Camera3D cam_init_scene(Vector3 *player_position) {
 
 Model mdl_gen_checkerboard(void) {
   Image img_checked = GenImageChecked(SZ_WORLD, SZ_WORLD, SZ_CHECKER,
-                                      SZ_CHECKER, DARKGRAY, RAYWHITE);
+                                      SZ_CHECKER, BLUE, DARKBLUE);
   Texture2D txtr_cb = LoadTextureFromImage(img_checked);
   UnloadImage(img_checked);
 

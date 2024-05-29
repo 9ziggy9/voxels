@@ -5,6 +5,7 @@
 #define VERT(N, X, Y, Z) \
   mesh.vertices[N] = X; mesh.vertices[N+1] = Y; mesh.vertices[N+2] = Z
 #define IDX(N, I)  mesh.indices[N] = I
+#define VXL_ACCESS(x, y, z, XM, ZM) ((x) + ((z) * (X)) + ((y) * (X) * (Z)))
 
 static Model MDL_VOXEL_GRASS;
 
@@ -56,35 +57,35 @@ void VOXEL_MODELS_INIT(void) {
       }));
 }
 
-Voxel voxel_new(vxl_t type, Vector3 coord) {
+Voxel voxel_new(vxl_t type, bool occ, Vector3 coord) {
   switch (type) {
-  case VXL_GRASS: return (Voxel) { .type = type, .coord = coord };
-  default:        return (Voxel) { .type = type, .coord = coord };
+  case VXL_GRASS: return (Voxel) { .type = type, .coord = coord, .occ = occ };
+  default:        return (Voxel) { .type = type, .coord = coord, .occ = occ };
   }
 }
 
 VoxelScape voxel_gen_noise_perlin(int X, int Z, int seed, fade_fn fn) {
   VoxelScape vxl_scape = (VoxelScape){ .X = X, .Z = Z, .Y = MAX_HEIGHT};
-  Voxel *map = MemAlloc(X * Z * MAX_HEIGHT * sizeof(Voxel));
+  Voxel *vxls = MemAlloc(X * Z * MAX_HEIGHT * sizeof(Voxel));
   float scale = 8.0f;
   for (int z = 0; z < Z; z += SZ_VOXEL) {
     for (int x = 0; x < X; x += SZ_VOXEL) {
       float noise = perlin_noise((float) x / scale,
                                  (float) z / scale,
                                  seed, fn);
-      noise = (noise + 1.0f) / 2.0f; // map [-1, 1] -> [0, 1]
+      noise = (noise + 1.0f) / 2.0f; // map [-1, 1] -> [0, 1]b
       size_t height = (int) (noise * MAX_HEIGHT);
-      for (size_t lvl = 0; lvl < height; lvl++) {
-        size_t idx = (z * X * MAX_HEIGHT) + (x * MAX_HEIGHT) + lvl;
-        map[idx] = voxel_new(VXL_GRASS, (Vector3) { .x = x, .z = z, .y = lvl });
-      }
-      for (size_t lvl = height; lvl < MAX_HEIGHT; lvl++) {
-        size_t idx = (z * X * MAX_HEIGHT) + (x * MAX_HEIGHT) + lvl;
-        map[idx] = voxel_new(VXL_EMPTY, (Vector3) { .x = x, .z = z, .y = lvl });
+      for (size_t lvl = 0; lvl < MAX_HEIGHT; lvl++) {
+        if (lvl < height)
+          vxls[VXL_ACCESS(x,lvl,z,X,Z)] =
+            voxel_new(VXL_GRASS, false, (Vector3) {.x = x, .z = z, .y = lvl});
+        else
+          vxls[VXL_ACCESS(x,lvl,z,X,Z)] =
+            voxel_new(VXL_EMPTY, true, (Vector3) {.x = x, .z = z, .y = lvl});
       }
     }
   }
-  vxl_scape.vxls = map;
+  vxl_scape.vxls = vxls;
   return vxl_scape;
 }
 
@@ -98,7 +99,7 @@ static Model *voxel_mdl_from_type(vxl_t type) {
 void draw_voxel_scape(VoxelScape *scape, Vector3 *wpos) {
   for (int n = 0; n < scape->X * scape->Z * scape->Y; n++) {
     Voxel vxl = scape->vxls[n];
-    if (vxl.type != VXL_EMPTY) {
+    if (!vxl.occ) {
       DrawModel(*voxel_mdl_from_type(vxl.type),
                 Vector3Add(*wpos, vxl.coord), SZ_VOXEL, WHITE);
     }
