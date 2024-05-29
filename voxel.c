@@ -4,10 +4,11 @@
 
 #define VERT(N, X, Y, Z) \
   mesh.vertices[N] = X; mesh.vertices[N+1] = Y; mesh.vertices[N+2] = Z
-
 #define IDX(N, I)  mesh.indices[N] = I
 
-Mesh voxel_generate_mesh_from_colors(Color *colors) {
+static Model MDL_VOXEL_GRASS;
+
+static Mesh voxel_generate_mesh_from_colors(Color *colors) {
   Mesh mesh = { 0 };
   mesh.triangleCount = 6;  // 3 faces, 2 triangles per face
   mesh.vertexCount = 12;   // 4 vertices per face, 3 faces
@@ -47,7 +48,64 @@ Mesh voxel_generate_mesh_from_colors(Color *colors) {
   return mesh;
 }
 
-// keeping for experimental purposes
+void VOXEL_MODELS_INIT(void) {
+  MDL_VOXEL_GRASS = LoadModelFromMesh(voxel_generate_mesh_from_colors((Color []){
+        GetColor(0x332212FF),
+        GetColor(0x472F19FF),
+        GetColor(0x1B4A17FF),
+      }));
+}
+
+Voxel voxel_new(vxl_t type, Vector3 coord) {
+  switch (type) {
+  case VXL_GRASS: return (Voxel) { .type = type, .coord = coord };
+  default:        return (Voxel) { .type = type, .coord = coord };
+  }
+}
+
+VoxelScape voxel_gen_noise_perlin(int X, int Z, int seed, fade_fn fn) {
+  VoxelScape vxl_scape = (VoxelScape){ .X = X, .Z = Z, .Y = MAX_HEIGHT};
+  Voxel *map = MemAlloc(X * Z * MAX_HEIGHT * sizeof(Voxel));
+  float scale = 8.0f;
+  for (int z = 0; z < Z; z += SZ_VOXEL) {
+    for (int x = 0; x < X; x += SZ_VOXEL) {
+      float noise = perlin_noise((float) x / scale,
+                                 (float) z / scale,
+                                 seed, fn);
+      noise = (noise + 1.0f) / 2.0f; // map [-1, 1] -> [0, 1]
+      size_t height = (int) (noise * MAX_HEIGHT);
+      for (size_t lvl = 0; lvl < height; lvl++) {
+        size_t idx = (z * X * MAX_HEIGHT) + (x * MAX_HEIGHT) + lvl;
+        map[idx] = voxel_new(VXL_GRASS, (Vector3) { .x = x, .z = z, .y = lvl });
+      }
+      for (size_t lvl = height; lvl < MAX_HEIGHT; lvl++) {
+        size_t idx = (z * X * MAX_HEIGHT) + (x * MAX_HEIGHT) + lvl;
+        map[idx] = voxel_new(VXL_EMPTY, (Vector3) { .x = x, .z = z, .y = lvl });
+      }
+    }
+  }
+  vxl_scape.vxls = map;
+  return vxl_scape;
+}
+
+static Model *voxel_mdl_from_type(vxl_t type) {
+  switch (type) {
+  case VXL_GRASS: return &MDL_VOXEL_GRASS;
+  default:        return &MDL_VOXEL_GRASS;
+  }
+}
+
+void draw_voxel_scape(VoxelScape *scape, Vector3 *wpos) {
+  for (int n = 0; n < scape->X * scape->Z * scape->Y; n++) {
+    Voxel vxl = scape->vxls[n];
+    if (vxl.type != VXL_EMPTY) {
+      DrawModel(*voxel_mdl_from_type(vxl.type),
+                Vector3Add(*wpos, vxl.coord), SZ_VOXEL, WHITE);
+    }
+  }
+}
+
+#if 0 // experimental purposes
 Mesh _voxel_generate_full_mesh_no_normals(void) {
   Mesh mesh = { 0 };
   mesh.vertexCount = 8;    // 8 vertices for a cube
@@ -90,3 +148,4 @@ Mesh _voxel_generate_full_mesh_no_normals(void) {
   UploadMesh(&mesh, false);
   return mesh;
 }
+#endif

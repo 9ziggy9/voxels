@@ -24,16 +24,13 @@ void poll_key_presses(Camera3D *, Vector3 *);
 void poll_mouse_movement(Camera3D *);
 
 #define SZ_WORLD   500
-#define SZ_CHECKER 4
+#define SZ_CHECKER 2
 
 #define WORLD_ORIGIN ((Vector3){0, 0, 0})
 #define CAM_ORIGIN \
   ((Vector3){SZ_WORLD * 0.66, SZ_WORLD * 0.375, SZ_WORLD * 0.5})
 
-Camera3D cam_init_scene(void);
-void DrawBuilding(Vector3 *, float, float, float, float, Color);
-void DrawBuildingL(Vector3 *, float, float, float, float, Color);
-
+Camera3D cam_init_scene(Vector3 *);
 Model mdl_gen_checkerboard(void);
 
 int main(void) {
@@ -47,30 +44,26 @@ int main(void) {
   SetExitKey(KEY_NULL);
 
   Model mdl_cb = mdl_gen_checkerboard();
-  Model mdl_test = LoadModelFromMesh(voxel_generate_mesh_from_colors((Color []){
-        (Color){255, 0, 0, 255},
-        (Color){0, 255, 0, 255},
-        (Color){0, 0, 255, 255},
-      }));
-  Camera3D cam_scene = cam_init_scene();
+  VOXEL_MODELS_INIT();
 
-  Vector3 my_position = {0, 1.0f, 0};
+
+  Vector3 player_position = {0};
   Vector3 world_position = WORLD_ORIGIN;
 
-#define SZ_VOXEL 2.0f
+  Camera3D cam_scene = cam_init_scene(&player_position);
+
+  VoxelScape vxl_scape = voxel_gen_noise_perlin(20, 20, 69420, fd_linear);
+
   while(!WindowShouldClose()) {
     poll_key_presses(&cam_scene, &world_position);
     poll_mouse_movement(&cam_scene);
     BeginDrawing();
       ClearBackground(BLACK);
       BeginMode3D(cam_scene);
-          DrawModel(mdl_cb, world_position, 1.0f, WHITE);
-          DrawModel(mdl_test, world_position, SZ_VOXEL, WHITE);
-          DrawModel(mdl_test, Vector3Add(world_position,
-                                         (Vector3){0,SZ_VOXEL,0}),
-                    SZ_VOXEL, WHITE);
-          DrawSphere(my_position, 1.0f, RED);
-        EndMode3D();
+        DrawModel(mdl_cb, world_position, 1.0f, WHITE);
+        draw_voxel_scape(&vxl_scape, &world_position);
+        DrawSphere(player_position, 10.0f, RED);
+      EndMode3D();
       PROC_INFO_DRAW(PROC_INFO_FLAG_ALL);
     EndDrawing();
   }
@@ -79,27 +72,35 @@ int main(void) {
 }
 
 void poll_mouse_movement(Camera3D *cam) {
-  #define ZOOM_RATE 10.0f
+  #define ZOOM_RATE 5.0f
   cam->fovy -= GetMouseWheelMove() * ZOOM_RATE;
-  cam->fovy = Clamp(cam->fovy, 8.0f, 92.5f);
+  cam->fovy = Clamp(cam->fovy, 2.0f, 180.0f);
 }
 
 void poll_key_presses(Camera3D *cam, Vector3 *pos) {
-  if (IsKeyDown(KEY_W))    pos->z += 0.1f;
-  if (IsKeyDown(KEY_A))    pos->x += 0.1f;
-  if (IsKeyDown(KEY_S))    pos->z -= 0.1f;
-  if (IsKeyDown(KEY_D))    pos->x -= 0.1f;
-  if (IsKeyDown(KEY_UP))   cam->position.y -= 0.5f;
-  if (IsKeyDown(KEY_DOWN)) cam->position.y += 0.5f;
+  static const float speed = 0.25f * SCREEN_WIDTH / SCREEN_HEIGHT;
+  Vector3 dp = {0};
+
+  if (IsKeyDown(KEY_W))    {dp.z += 1; dp.x += 1;}
+  if (IsKeyDown(KEY_A))    {dp.z -= 1; dp.x += 1;}
+  if (IsKeyDown(KEY_S))    {dp.z -= 1; dp.x -= 1;}
+  if (IsKeyDown(KEY_D))    {dp.x -= 1; dp.z += 1;}
+
+  if (dp.x != 0 || dp.z != 0) {
+    *pos = Vector3Add(*pos, Vector3Scale(Vector3Normalize(dp), speed));
+  }
+
+  if (IsKeyDown(KEY_UP))   cam->position.y -= 1.5f;
+  if (IsKeyDown(KEY_DOWN)) cam->position.y += 1.5f;
 
   if (IsKeyPressed(KEY_ESCAPE)) CLOSE_WITH(EXIT_SUCCESS, "Exit key pressed.");
   if (IsKeyPressed(KEY_Q))      CLOSE_WITH(EXIT_SUCCESS, "Exit key pressed.");
 }
 
-Camera3D cam_init_scene(void) {
+Camera3D cam_init_scene(Vector3 *player_position) {
   return (Camera3D) {
     .position   = CAM_ORIGIN,
-    .target     = WORLD_ORIGIN,
+    .target     = *player_position,
     .up         = (Vector3){0.0f, 1.0f, 0.0f},
     .fovy       = 66.0f,
     .projection = CAMERA_ORTHOGRAPHIC,
