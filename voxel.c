@@ -5,7 +5,7 @@
 #define VERT(N, X, Y, Z) \
   mesh.vertices[N] = X; mesh.vertices[N+1] = Y; mesh.vertices[N+2] = Z
 #define IDX(N, I)  mesh.indices[N] = I
-#define VXL_ACCESS(x, y, z, XM, ZM) ((x) + ((z) * (X)) + ((y) * (X) * (Z)))
+#define VXL_ACCESS(x, y, z, XM, ZM) ((x) + ((z) * (XM)) + ((y) * (XM) * (ZM)))
 
 static Model MDL_VOXEL_GRASS;
 
@@ -73,7 +73,7 @@ VoxelScape voxel_gen_noise_perlin(int X, int Z, int seed, fade_fn fn) {
       float noise = perlin_noise((float) x / scale,
                                  (float) z / scale,
                                  seed, fn);
-      noise = (noise + 1.0f) / 2.0f; // map [-1, 1] -> [0, 1]b
+      noise = (noise + 1.0f) / 2.0f;
       size_t height = (int) (noise * MAX_HEIGHT);
       for (size_t lvl = 0; lvl < MAX_HEIGHT; lvl++) {
         if (lvl < height)
@@ -96,9 +96,40 @@ static Model *voxel_mdl_from_type(vxl_t type) {
   }
 }
 
-void draw_voxel_scape(VoxelScape *scape, Vector3 *wpos) {
-  for (int n = 0; n < scape->X * scape->Z * scape->Y; n++) {
-    Voxel vxl = scape->vxls[n];
+#define VXL_EDGE(V, X, Y, Z) ((V.x == 0 || V.x >= X - 1) \
+  || (V.y == 0 || V.y >= Y - 1) \
+  || (V.z == 0 || V.z >= Z - 1))
+
+void voxel_set_occluded(VoxelScape *vs) {
+  for (int z = 0; z < vs->Z; z++) {
+    for (int x = 0; x < vs->X; x++) {
+      for (int y = 0; y < vs->Y; y++) {
+        Voxel *v = &vs->vxls[VXL_ACCESS(x, y, z, vs->X, vs->Z)];
+        if (v->type == VXL_EMPTY) { v->occ = true; continue; }
+        if (VXL_EDGE((*v).coord, vs->X, vs->Y, vs->Z)) {
+          v->occ = false;
+          continue;
+        }
+
+        uint8_t occ = 0; // shift 1s for occluded faces
+
+        Voxel *v_above = &vs->vxls[VXL_ACCESS(x, y + 1, z, vs->X, vs->Z)];
+        Voxel *v_front = &vs->vxls[VXL_ACCESS(x + 1, y, z, vs->X, vs->Z)];
+        Voxel *v_right = &vs->vxls[VXL_ACCESS(x, y, z + 1, vs->X, vs->Z)];
+
+        if (v_above->type != VXL_EMPTY) occ |= (1 << 0);
+        if (v_front->type != VXL_EMPTY) occ |= (1 << 1);
+        if (v_right->type != VXL_EMPTY) occ |= (1 << 2);
+
+        v->occ = (occ == 7); // 7 == 0b111
+      }
+    }
+  }
+}
+
+void draw_voxel_scape(VoxelScape *vs, Vector3 *wpos) {
+  for (int n = 0; n < vs->X * vs->Z * vs->Y; n++) {
+    Voxel vxl = vs->vxls[n];
     if (!vxl.occ) {
       DrawModel(*voxel_mdl_from_type(vxl.type),
                 Vector3Add(*wpos, vxl.coord), SZ_VOXEL, WHITE);

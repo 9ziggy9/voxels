@@ -51,7 +51,8 @@ int main(void) {
 
   Camera3D cam_scene = cam_init_scene(&player_position);
 
-  VoxelScape vxl_scape = voxel_gen_noise_perlin(40, 40, 69420, fd_linear);
+  VoxelScape vxl_scape = voxel_gen_noise_perlin(40, 40, 9001, fd_linear);
+  voxel_set_occluded(&vxl_scape);
 
   while(!WindowShouldClose()) {
     poll_key_presses(&cam_scene, &world_position);
@@ -70,22 +71,21 @@ int main(void) {
 }
 
 void poll_mouse_movement(Camera3D *cam) {
-  #define ZOOM_RATE 5.0f
+#define ZOOM_RATE (5.0f)
   cam->fovy -= GetMouseWheelMove() * ZOOM_RATE;
   cam->fovy = Clamp(cam->fovy, 2.0f, 180.0f);
 }
 
 void poll_key_presses(Camera3D *cam, Vector3 *pos) {
-  static const float speed = 0.25f * SCREEN_WIDTH / SCREEN_HEIGHT;
+#define SPEED (0.25f * SCREEN_WIDTH / SCREEN_HEIGHT)
   Vector3 dp = {0};
-
   if (IsKeyDown(KEY_W))    {dp.z += 1; dp.x += 1;}
   if (IsKeyDown(KEY_A))    {dp.z -= 1; dp.x += 1;}
   if (IsKeyDown(KEY_S))    {dp.z -= 1; dp.x -= 1;}
   if (IsKeyDown(KEY_D))    {dp.x -= 1; dp.z += 1;}
 
   if (dp.x != 0 || dp.z != 0) {
-    *pos = Vector3Add(*pos, Vector3Scale(Vector3Normalize(dp), speed));
+    *pos = Vector3Add(*pos, Vector3Scale(Vector3Normalize(dp), SPEED));
   }
 
   if (IsKeyDown(KEY_UP))   cam->position.y -= 1.5f;

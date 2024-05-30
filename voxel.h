@@ -27,5 +27,6 @@ void VOXEL_MODELS_INIT(void);
 Voxel voxel_new(vxl_t, bool, Vector3);
 VoxelScape voxel_gen_noise_perlin(int, int, int, fade_fn);
 void draw_voxel_scape(VoxelScape *, Vector3 *);
+void voxel_set_occluded(VoxelScape *);
 
 #endif //VOXEL_H_
