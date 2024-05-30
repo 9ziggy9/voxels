@@ -50,7 +50,8 @@ static Mesh voxel_generate_mesh_from_colors(Color *colors) {
 }
 
 void VOXEL_MODELS_INIT(void) {
-  MDL_VOXEL_GRASS = LoadModelFromMesh(voxel_generate_mesh_from_colors((Color []){
+  MDL_VOXEL_GRASS = LoadModelFromMesh(voxel_generate_mesh_from_colors((Color [])
+      {
         GetColor(0x332212FF),
         GetColor(0x472F19FF),
         GetColor(0x1B4A17FF),
@@ -100,7 +101,7 @@ static Model *voxel_mdl_from_type(vxl_t type) {
   || (V.y == 0 || V.y >= Y - 1) \
   || (V.z == 0 || V.z >= Z - 1))
 
-void voxel_set_occluded(VoxelScape *vs) {
+void voxel_cull_occluded(VoxelScape *vs) {
   for (int z = 0; z < vs->Z; z++) {
     for (int x = 0; x < vs->X; x++) {
       for (int y = 0; y < vs->Y; y++) {
@@ -125,6 +126,105 @@ void voxel_set_occluded(VoxelScape *vs) {
       }
     }
   }
+}
+
+float voxel_vertices[3][4][3] = {
+  { // Front face
+    {-0.5f, 0.0f, 0.5f},
+    {0.5f, 0.0f, 0.5f},
+    {0.5f, 1.0f, 0.5f},
+    {-0.5f, 1.0f, 0.5f}
+  },
+  { // Right face
+    {0.5f, 0.0f, 0.5f},
+    {0.5f, 0.0f, -0.5f},
+    {0.5f, 1.0f, -0.5f},
+    {0.5f, 1.0f, 0.5f}
+  },
+  { // Top face
+    {-0.5f, 1.0f, 0.5f},
+    {0.5f, 1.0f, 0.5f},
+    {0.5f, 1.0f, -0.5f},
+    {-0.5f, 1.0f, -0.5f}
+  }
+};
+
+uint16_t voxel_indices[3][2][3] = {
+  { // Front face
+    {0, 1, 2},
+    {2, 3, 0}
+  },
+  { // Right face
+    {4, 5, 6},
+    {6, 7, 4}
+  },
+  { // Top face
+    {8, 9, 10},
+    {10, 11, 8}
+  }
+};
+
+Model voxel_terrain_model_from_scape(VoxelScape *vs) {
+  int num_voxels = vs->X * vs->Y * vs->Z;
+  int num_vertices = 0;
+  int num_indices = 0;
+
+  // Count the number of vertices and indices needed
+  for (int i = 0; i < num_voxels; i++) {
+    Voxel v = vs->vxls[i];
+    if (!v.occ) {
+      num_vertices += 12; // 4 vertices per face, 3 faces per voxel
+      num_indices += 18; // 6 indices per face, 3 faces per voxel
+    }
+  }
+
+  // Create the mesh
+  Mesh mesh = { 0 };
+  mesh.vertexCount = num_vertices;
+  mesh.triangleCount = num_indices / 3;
+  mesh.vertices = (float *) MemAlloc(num_vertices * 3 * sizeof(float));
+  mesh.indices = (uint16_t *) MemAlloc(num_indices * sizeof(uint16_t));
+  mesh.colors = (uint8_t *) MemAlloc(num_vertices * 4 * sizeof(uint8_t));
+
+  // Populate the mesh
+  int vertex_index = 0;
+  int index_index = 0;
+  for (int i = 0; i < num_voxels; i++) {
+    Voxel v = vs->vxls[i];
+    if (!v.occ) {
+      Color colors[3] = {GRAY, DARKGRAY, GREEN};
+      for (int face = 0; face < 3; face++) {
+        Color color = colors[face];
+        for (int vert = 0; vert < 4; vert++) {
+          int idx = vertex_index * 3;
+          mesh.vertices[idx] = v.coord.x + voxel_vertices[face][vert][0];
+          mesh.vertices[idx + 1] = v.coord.y + voxel_vertices[face][vert][1];
+          mesh.vertices[idx + 2] = v.coord.z + voxel_vertices[face][vert][2];
+
+          idx = vertex_index * 4;
+          mesh.colors[idx] = color.r;
+          mesh.colors[idx + 1] = color.g;
+          mesh.colors[idx + 2] = color.b;
+          mesh.colors[idx + 3] = color.a;
+
+          vertex_index++;
+        }
+
+        for (int tri = 0; tri < 2; tri++) {
+          for (int idx = 0; idx < 3; idx++) {
+            mesh.indices[index_index] = vertex_index - 4 + voxel_indices[face][tri][idx];
+            index_index++;
+          }
+        }
+      }
+    }
+  }
+
+  UploadMesh(&mesh, false);
+
+  // Create the model
+  Model model = LoadModelFromMesh(mesh);
+  return model;
 }
 
 void draw_voxel_scape(VoxelScape *vs, Vector3 *wpos) {
