@@ -4,8 +4,13 @@
 #include <string.h>
 #include "noise.h"
 
-#define SZ_VOXEL 1
-#define MAX_HEIGHT 10
+#define SZ_VOXEL 2
+/* #define CHUNK_X  21 */
+/* #define CHUNK_Z  21 */
+/* #define CHUNK_Y  8 */
+#define CHUNK_X  3
+#define CHUNK_Z  3
+#define CHUNK_Y  3
 
 #define VXL_NUM_TYPES 2
 typedef enum {
@@ -21,7 +26,8 @@ typedef struct {
 
 typedef struct { Voxel *vxls; int X, Y, Z; } VoxelScape;
 
-VoxelScape voxel_gen_perlin_scape(int, int, int, fade_fn);
+VoxelScape voxel_gen_perlin_scape(int, int, int, int, fade_fn);
+void voxel_destroy_scape(VoxelScape *);
 void voxel_cull_occluded(VoxelScape *);
 Model voxel_terrain_model_from_scape(VoxelScape *);
 
