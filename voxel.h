@@ -21,8 +21,6 @@ typedef struct {
 
 typedef struct { Voxel *vxls; int X, Y, Z; } VoxelScape;
 
-void VOXEL_MODELS_INIT(void);
-Voxel voxel_new(vxl_t, bool, Vector3);
 VoxelScape voxel_gen_perlin_scape(int, int, int, fade_fn);
 void voxel_cull_occluded(VoxelScape *);
 Model voxel_terrain_model_from_scape(VoxelScape *);

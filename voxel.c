@@ -8,9 +8,6 @@
 #define FACE_NUM_TRIS  2
 #define TRI_NUM_IDXS   3
 
-#define VERT(N, X, Y, Z) \
-  mesh.vertices[N] = X; mesh.vertices[N+1] = Y; mesh.vertices[N+2] = Z
-#define IDX(N, I)  mesh.indices[N] = I
 #define VXL_ACCESS(x, y, z, XM, ZM) ((x) + ((z) * (XM)) + ((y) * (XM) * (ZM)))
 #define VXL_EDGE(V, X, Y, Z) ((V.x == 0 || V.x >= X - 1) \
   || (V.y == 0 || V.y >= Y - 1) \
@@ -33,18 +30,16 @@ static uint16_t VXL_IDX_LOOKUP[VXL_NUM_FACES][FACE_NUM_TRIS][TRI_NUM_IDXS] =
     {{8, 9, 10}, {8, 10, 11}}  // top
   };
 
+#define VXL_CLR_NONE   {0, 0, 0, 0}
+#define VXL_CLR_DBROWN {51, 13, 16, 255}
+#define VXL_CLR_BROWN  {71, 47, 25, 255}
+#define VXL_CLR_GREEN  {27, 74, 23, 255}
+
 static Color VXL_CLR_LOOKUP[VXL_NUM_TYPES][VXL_NUM_FACES] =
   {
-    /*VXL_EMPTY*/ {{0,0,0,0},{0,0,0,0},{0,0,0,0}},
-    /*VXL_GRASS*/ {{51, 13, 18, 255}, {71, 47, 25, 255}, {27, 74, 23, 255}},
+    /*VXL_EMPTY*/ {VXL_CLR_NONE,   VXL_CLR_NONE,  VXL_CLR_NONE},
+    /*VXL_GRASS*/ {VXL_CLR_DBROWN, VXL_CLR_BROWN, VXL_CLR_GREEN},
   };
-
-Voxel voxel_new(vxl_t type, bool occ, Vector3 coord) {
-  switch (type) {
-  case VXL_GRASS: return (Voxel) { .type = type, .coord = coord, .occ = occ };
-  default:        return (Voxel) { .type = type, .coord = coord, .occ = occ };
-  }
-}
 
 VoxelScape voxel_gen_perlin_scape(int X, int Z, int seed, fade_fn fn) {
   VoxelScape vxl_scape = (VoxelScape){ .X = X, .Z = Z, .Y = MAX_HEIGHT};
@@ -56,12 +51,11 @@ VoxelScape voxel_gen_perlin_scape(int X, int Z, int seed, fade_fn fn) {
       noise = (noise + 1.0f) / 2.0f;
       size_t height = (int) (noise * MAX_HEIGHT);
       for (size_t lvl = 0; lvl < MAX_HEIGHT; lvl++) {
-        if (lvl < height)
-          vxls[VXL_ACCESS(x,lvl,z,X,Z)] =
-            voxel_new(VXL_GRASS, false, (Vector3) {.x = x, .z = z, .y = lvl});
-        else
-          vxls[VXL_ACCESS(x,lvl,z,X,Z)] =
-            voxel_new(VXL_EMPTY, true, (Vector3) {.x = x, .z = z, .y = lvl});
+        vxls[VXL_ACCESS(x,lvl,z,X,Z)] = (Voxel) {
+          .occ =  lvl < height,
+          .type = (lvl < height ? VXL_GRASS : VXL_EMPTY),
+          .coord = (Vector3){x, lvl, z},
+        };
       }
     }
   }
@@ -219,6 +213,10 @@ static Model *voxel_mdl_from_type(vxl_t type) {
   default:        return &MDL_VOXEL_GRASS;
   }
 }
+
+#define VERT(N, X, Y, Z) \
+  mesh.vertices[N] = X; mesh.vertices[N+1] = Y; mesh.vertices[N+2] = Z
+#define IDX(N, I)  mesh.indices[N] = I
 
 static Mesh voxel_generate_mesh_from_colors(Color *colors) {
   Mesh mesh = { 0 };
