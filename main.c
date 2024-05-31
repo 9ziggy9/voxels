@@ -44,17 +44,15 @@ int main(void) {
   SetExitKey(KEY_NULL);
 
   Model mdl_cb = mdl_gen_checkerboard();
-  VOXEL_MODELS_INIT();
 
   Vector3 player_position = {0};
   Vector3 world_position = WORLD_ORIGIN;
 
   Camera3D cam_scene = cam_init_scene(&player_position);
 
-  VoxelScape vxl_scape = voxel_gen_noise_perlin(40, 40, 9001, fd_linear);
+  VoxelScape vxl_scape = voxel_gen_perlin_scape(40, 40, 30042, fd_linear);
   voxel_cull_occluded(&vxl_scape);
-
-  Model vxl_land = voxel_terrain_model_from_scape(&vxl_scape);
+  Model mdl_terrain_chunk = voxel_terrain_model_from_scape(&vxl_scape);
 
   while(!WindowShouldClose()) {
     poll_key_presses(&cam_scene, &world_position);
@@ -63,8 +61,7 @@ int main(void) {
       ClearBackground(BLACK);
       BeginMode3D(cam_scene);
         DrawModel(mdl_cb, world_position, 1.0f, WHITE);
-        DrawModel(vxl_land, world_position, 1.0f, WHITE);
-        /* draw_voxel_scape(&vxl_scape, &world_position); */
+        DrawModel(mdl_terrain_chunk, world_position, 1.0f, WHITE);
       EndMode3D();
       PROC_INFO_DRAW(PROC_INFO_FLAG_ALL);
     EndDrawing();

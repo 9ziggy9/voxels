@@ -7,14 +7,12 @@
 #define SZ_VOXEL 1
 #define MAX_HEIGHT 10
 
+#define VXL_NUM_TYPES 2
 typedef enum {
   VXL_EMPTY,
   VXL_GRASS,
 } vxl_t;
 
-// NOTE:
-// should I use bitfields to reduce memory overhead? memory usage actually seems
-// fine for the time being, also, how to unpack to Vector3?
 typedef struct {
   vxl_t type;
   Vector3 coord;
@@ -25,8 +23,7 @@ typedef struct { Voxel *vxls; int X, Y, Z; } VoxelScape;
 
 void VOXEL_MODELS_INIT(void);
 Voxel voxel_new(vxl_t, bool, Vector3);
-VoxelScape voxel_gen_noise_perlin(int, int, int, fade_fn);
-void draw_voxel_scape(VoxelScape *, Vector3 *);
+VoxelScape voxel_gen_perlin_scape(int, int, int, fade_fn);
 void voxel_cull_occluded(VoxelScape *);
 Model voxel_terrain_model_from_scape(VoxelScape *);
 

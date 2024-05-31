@@ -2,61 +2,42 @@
 #include <raymath.h>
 #include <stdint.h>
 
+#define VXL_NUM_FACES  3
+#define FACE_NUM_VERTS 4
+#define TRI_NUM_VERTS  3
+#define FACE_NUM_TRIS  2
+#define TRI_NUM_IDXS   3
+
 #define VERT(N, X, Y, Z) \
   mesh.vertices[N] = X; mesh.vertices[N+1] = Y; mesh.vertices[N+2] = Z
 #define IDX(N, I)  mesh.indices[N] = I
 #define VXL_ACCESS(x, y, z, XM, ZM) ((x) + ((z) * (XM)) + ((y) * (XM) * (ZM)))
+#define VXL_EDGE(V, X, Y, Z) ((V.x == 0 || V.x >= X - 1) \
+  || (V.y == 0 || V.y >= Y - 1) \
+  || (V.z == 0 || V.z >= Z - 1))
 
-static Model MDL_VOXEL_GRASS;
+static float VXL_VERT_LOOKUP[VXL_NUM_FACES][FACE_NUM_VERTS][TRI_NUM_VERTS] =
+  {
+    {{-0.5f, 0.0f, 0.5f}, {0.5f, 0.0f, 0.5f}, // front
+     {0.5f, 1.0f, 0.5f}, {-0.5f, 1.0f, 0.5f}},
+    {{0.5f, 0.0f, 0.5f}, {0.5f, 0.0f, -0.5f}, // right
+     {0.5f, 1.0f, -0.5f}, {0.5f, 1.0f, 0.5f}},
+    {{-0.5f, 1.0f, 0.5f}, {0.5f, 1.0f, 0.5f}, // top
+     {0.5f, 1.0f, -0.5f}, {-0.5f, 1.0f, -0.5f}}
+  };
 
-static Mesh voxel_generate_mesh_from_colors(Color *colors) {
-  Mesh mesh = { 0 };
-  mesh.triangleCount = 6;  // 3 faces, 2 triangles per face
-  mesh.vertexCount = 12;   // 4 vertices per face, 3 faces
+static uint16_t VXL_IDX_LOOKUP[VXL_NUM_FACES][FACE_NUM_TRIS][TRI_NUM_IDXS] =
+  {
+    {{0, 1, 2},  {0, 2, 3}},   // front
+    {{4, 5, 6},  {4, 6, 7}},   // right
+    {{8, 9, 10}, {8, 10, 11}}  // top
+  };
 
-  mesh.vertices = (float *)    MemAlloc(3*mesh.vertexCount*sizeof(float));
-  mesh.indices  = (uint16_t *) MemAlloc(3*mesh.triangleCount*sizeof(uint16_t));
-  mesh.colors   = (uint8_t *)  MemAlloc(4*mesh.vertexCount*sizeof(uint8_t));
-
-  // four to a face
-  VERT(0, -0.5f, 0.0f, 0.5f);  VERT(3, 0.5f, 0.0f, 0.5f);
-  VERT(6, 0.5f, 1.0f, 0.5f);   VERT(9, -0.5f, 1.0f, 0.5f);
-  VERT(12, 0.5f, 0.0f, 0.5f);  VERT(15, 0.5f, 0.0f, -0.5f);
-  VERT(18, 0.5f, 1.0f, -0.5f); VERT(21, 0.5f, 1.0f, 0.5f);
-  VERT(24, -0.5f, 1.0f, 0.5f); VERT(27, 0.5f, 1.0f, 0.5f);
-  VERT(30, 0.5f, 1.0f, -0.5f); VERT(33, -0.5f, 1.0f, -0.5f);
-
-  // six to a face
-  IDX(0, 0);  IDX(1, 1);   IDX(2, 2);
-  IDX(3, 0);  IDX(4, 2);   IDX(5, 3);
-  IDX(6, 4);  IDX(7, 5);   IDX(8, 6);
-  IDX(9, 4);  IDX(10, 6);  IDX(11, 7);
-  IDX(12, 8); IDX(13, 9);  IDX(14, 10);
-  IDX(15, 8); IDX(16, 10); IDX(17, 11);
-
-  for (int face = 0; face < 3; face++) {
-    Color color = colors[face];
-    for (int vert = 0; vert < 4; vert++) {
-      int idx = face * 4 + vert;
-      mesh.colors[idx * 4]     = color.r;
-      mesh.colors[idx * 4 + 1] = color.g;
-      mesh.colors[idx * 4 + 2] = color.b;
-      mesh.colors[idx * 4 + 3] = color.a;
-    }
-  }
-
-  UploadMesh(&mesh, false);
-  return mesh;
-}
-
-void VOXEL_MODELS_INIT(void) {
-  MDL_VOXEL_GRASS = LoadModelFromMesh(voxel_generate_mesh_from_colors((Color [])
-      {
-        GetColor(0x332212FF),
-        GetColor(0x472F19FF),
-        GetColor(0x1B4A17FF),
-      }));
-}
+static Color VXL_CLR_LOOKUP[VXL_NUM_TYPES][VXL_NUM_FACES] =
+  {
+    /*VXL_EMPTY*/ {{0,0,0,0},{0,0,0,0},{0,0,0,0}},
+    /*VXL_GRASS*/ {{51, 13, 18, 255}, {71, 47, 25, 255}, {27, 74, 23, 255}},
+  };
 
 Voxel voxel_new(vxl_t type, bool occ, Vector3 coord) {
   switch (type) {
@@ -65,15 +46,13 @@ Voxel voxel_new(vxl_t type, bool occ, Vector3 coord) {
   }
 }
 
-VoxelScape voxel_gen_noise_perlin(int X, int Z, int seed, fade_fn fn) {
+VoxelScape voxel_gen_perlin_scape(int X, int Z, int seed, fade_fn fn) {
   VoxelScape vxl_scape = (VoxelScape){ .X = X, .Z = Z, .Y = MAX_HEIGHT};
   Voxel *vxls = MemAlloc(X * Z * MAX_HEIGHT * sizeof(Voxel));
   float scale = 8.0f;
   for (int z = 0; z < Z; z += SZ_VOXEL) {
     for (int x = 0; x < X; x += SZ_VOXEL) {
-      float noise = perlin_noise((float) x / scale,
-                                 (float) z / scale,
-                                 seed, fn);
+      float noise = perlin_noise((float) x/scale, (float) z/scale, seed, fn);
       noise = (noise + 1.0f) / 2.0f;
       size_t height = (int) (noise * MAX_HEIGHT);
       for (size_t lvl = 0; lvl < MAX_HEIGHT; lvl++) {
@@ -89,17 +68,6 @@ VoxelScape voxel_gen_noise_perlin(int X, int Z, int seed, fade_fn fn) {
   vxl_scape.vxls = vxls;
   return vxl_scape;
 }
-
-static Model *voxel_mdl_from_type(vxl_t type) {
-  switch (type) {
-  case VXL_GRASS: return &MDL_VOXEL_GRASS;
-  default:        return &MDL_VOXEL_GRASS;
-  }
-}
-
-#define VXL_EDGE(V, X, Y, Z) ((V.x == 0 || V.x >= X - 1) \
-  || (V.y == 0 || V.y >= Y - 1) \
-  || (V.z == 0 || V.z >= Z - 1))
 
 void voxel_cull_occluded(VoxelScape *vs) {
   for (int z = 0; z < vs->Z; z++) {
@@ -128,92 +96,55 @@ void voxel_cull_occluded(VoxelScape *vs) {
   }
 }
 
-float voxel_vertices[3][4][3] = {
-  { // Front face
-    {-0.5f, 0.0f, 0.5f},
-    {0.5f, 0.0f, 0.5f},
-    {0.5f, 1.0f, 0.5f},
-    {-0.5f, 1.0f, 0.5f}
-  },
-  { // Right face
-    {0.5f, 0.0f, 0.5f},
-    {0.5f, 0.0f, -0.5f},
-    {0.5f, 1.0f, -0.5f},
-    {0.5f, 1.0f, 0.5f}
-  },
-  { // Top face
-    {-0.5f, 1.0f, 0.5f},
-    {0.5f, 1.0f, 0.5f},
-    {0.5f, 1.0f, -0.5f},
-    {-0.5f, 1.0f, -0.5f}
-  }
-};
-
-uint16_t voxel_indices[3][2][3] = {
-  { // Front face
-    {0, 1, 2},
-    {2, 3, 0}
-  },
-  { // Right face
-    {4, 5, 6},
-    {6, 7, 4}
-  },
-  { // Top face
-    {8, 9, 10},
-    {10, 11, 8}
-  }
-};
-
 Model voxel_terrain_model_from_scape(VoxelScape *vs) {
   int num_voxels = vs->X * vs->Y * vs->Z;
   int num_vertices = 0;
   int num_indices = 0;
 
-  // Count the number of vertices and indices needed
+  // compute number of verts/idxs needed
   for (int i = 0; i < num_voxels; i++) {
     Voxel v = vs->vxls[i];
     if (!v.occ) {
-      num_vertices += 12; // 4 vertices per face, 3 faces per voxel
-      num_indices += 18; // 6 indices per face, 3 faces per voxel
+      num_vertices += FACE_NUM_VERTS * VXL_NUM_FACES;
+      num_indices  += FACE_NUM_TRIS * TRI_NUM_IDXS * VXL_NUM_FACES;
     }
   }
 
-  // Create the mesh
+  // create composite mesh
   Mesh mesh = { 0 };
   mesh.vertexCount = num_vertices;
   mesh.triangleCount = num_indices / 3;
   mesh.vertices = (float *) MemAlloc(num_vertices * 3 * sizeof(float));
-  mesh.indices = (uint16_t *) MemAlloc(num_indices * sizeof(uint16_t));
-  mesh.colors = (uint8_t *) MemAlloc(num_vertices * 4 * sizeof(uint8_t));
+  mesh.indices  = (uint16_t *) MemAlloc(num_indices * sizeof(uint16_t));
+  mesh.colors   = (uint8_t *) MemAlloc(num_vertices * 4 * sizeof(uint8_t));
 
-  // Populate the mesh
-  int vertex_index = 0;
-  int index_index = 0;
+  // populate the mesh
+  int vertex_idx = 0;
+  int index_idx  = 0; // index index, lol
   for (int i = 0; i < num_voxels; i++) {
     Voxel v = vs->vxls[i];
     if (!v.occ) {
-      Color colors[3] = {GRAY, DARKGRAY, GREEN};
-      for (int face = 0; face < 3; face++) {
+      Color *colors = VXL_CLR_LOOKUP[v.type];
+      for (int face = 0; face < VXL_NUM_FACES; face++) {
         Color color = colors[face];
-        for (int vert = 0; vert < 4; vert++) {
-          int idx = vertex_index * 3;
-          mesh.vertices[idx] = v.coord.x + voxel_vertices[face][vert][0];
-          mesh.vertices[idx + 1] = v.coord.y + voxel_vertices[face][vert][1];
-          mesh.vertices[idx + 2] = v.coord.z + voxel_vertices[face][vert][2];
+        for (int vert = 0; vert < FACE_NUM_VERTS; vert++) {
+          int idx = vertex_idx * 3;
+          mesh.vertices[idx] = v.coord.x     + VXL_VERT_LOOKUP[face][vert][0];
+          mesh.vertices[idx + 1] = v.coord.y + VXL_VERT_LOOKUP[face][vert][1];
+          mesh.vertices[idx + 2] = v.coord.z + VXL_VERT_LOOKUP[face][vert][2];
 
-          idx = vertex_index * 4;
+          idx = vertex_idx * 4;
           mesh.colors[idx] = color.r;
           mesh.colors[idx + 1] = color.g;
           mesh.colors[idx + 2] = color.b;
           mesh.colors[idx + 3] = color.a;
 
-          vertex_index++;
+          vertex_idx++;
         }
-
-        for (int tri = 0; tri < 2; tri++) {
-          for (int idx = 0; idx < 3; idx++) {
-            mesh.indices[index_index] = vertex_index - 4 + voxel_indices[face][tri][idx];
-            index_index++;
+        for (int tri = 0; tri < FACE_NUM_TRIS; tri++) {
+          for (int idx = 0; idx < TRI_NUM_IDXS; idx++) {
+            mesh.indices[index_idx++] = vertex_idx - 4
+              + VXL_IDX_LOOKUP[face][tri][idx];
           }
         }
       }
@@ -221,12 +152,12 @@ Model voxel_terrain_model_from_scape(VoxelScape *vs) {
   }
 
   UploadMesh(&mesh, false);
-
-  // Create the model
   Model model = LoadModelFromMesh(mesh);
   return model;
 }
 
+/* DEPRECATED and/or EXPERIMENTAL */
+#if 0
 void draw_voxel_scape(VoxelScape *vs, Vector3 *wpos) {
   for (int n = 0; n < vs->X * vs->Z * vs->Y; n++) {
     Voxel vxl = vs->vxls[n];
@@ -236,8 +167,6 @@ void draw_voxel_scape(VoxelScape *vs, Vector3 *wpos) {
     }
   }
 }
-
-#if 0 // experimental purposes
 Mesh _voxel_generate_full_mesh_no_normals(void) {
   Mesh mesh = { 0 };
   mesh.vertexCount = 8;    // 8 vertices for a cube
@@ -279,5 +208,68 @@ Mesh _voxel_generate_full_mesh_no_normals(void) {
 
   UploadMesh(&mesh, false);
   return mesh;
+}
+
+/* DEPRECATED: for individual voxels -- TOO SLOW TO DRAW PER VOXEL */
+static Model MDL_VOXEL_GRASS;
+
+static Model *voxel_mdl_from_type(vxl_t type) {
+  switch (type) {
+  case VXL_GRASS: return &MDL_VOXEL_GRASS;
+  default:        return &MDL_VOXEL_GRASS;
+  }
+}
+
+static Mesh voxel_generate_mesh_from_colors(Color *colors) {
+  Mesh mesh = { 0 };
+  mesh.triangleCount = VXL_NUM_FACES * FACE_NUM_TRIS;
+  mesh.vertexCount   = VXL_NUM_FACES * FACE_NUM_VERTS;
+
+  mesh.vertices = (float *)    MemAlloc(3*mesh.vertexCount*sizeof(float));
+  mesh.indices  = (uint16_t *) MemAlloc(3*mesh.triangleCount*sizeof(uint16_t));
+  mesh.colors   = (uint8_t *)  MemAlloc(4*mesh.vertexCount*sizeof(uint8_t));
+
+  /* NOTE:
+     this could be refactorable from lookup table... but why?
+     headache inducing. */
+
+  // four to a face
+  VERT(0, -0.5f, 0.0f, 0.5f);  VERT(3, 0.5f, 0.0f, 0.5f);
+  VERT(6, 0.5f, 1.0f, 0.5f);   VERT(9, -0.5f, 1.0f, 0.5f);
+  VERT(12, 0.5f, 0.0f, 0.5f);  VERT(15, 0.5f, 0.0f, -0.5f);
+  VERT(18, 0.5f, 1.0f, -0.5f); VERT(21, 0.5f, 1.0f, 0.5f);
+  VERT(24, -0.5f, 1.0f, 0.5f); VERT(27, 0.5f, 1.0f, 0.5f);
+  VERT(30, 0.5f, 1.0f, -0.5f); VERT(33, -0.5f, 1.0f, -0.5f);
+
+  // six to a face
+  IDX(0, 0);  IDX(1, 1);   IDX(2, 2);
+  IDX(3, 0);  IDX(4, 2);   IDX(5, 3);
+  IDX(6, 4);  IDX(7, 5);   IDX(8, 6);
+  IDX(9, 4);  IDX(10, 6);  IDX(11, 7);
+  IDX(12, 8); IDX(13, 9);  IDX(14, 10);
+  IDX(15, 8); IDX(16, 10); IDX(17, 11);
+
+  for (int face = 0; face < 3; face++) {
+    Color color = colors[face];
+    for (int vert = 0; vert < 4; vert++) {
+      int idx = face * 4 + vert;
+      mesh.colors[idx * 4]     = color.r;
+      mesh.colors[idx * 4 + 1] = color.g;
+      mesh.colors[idx * 4 + 2] = color.b;
+      mesh.colors[idx * 4 + 3] = color.a;
+    }
+  }
+
+  UploadMesh(&mesh, false);
+  return mesh;
+}
+
+void VOXEL_MODELS_INIT(void) {
+  MDL_VOXEL_GRASS = LoadModelFromMesh(voxel_generate_mesh_from_colors((Color [])
+      {
+        GetColor(0x332212FF),
+        GetColor(0x472F19FF),
+        GetColor(0x1B4A17FF),
+      }));
 }
 #endif
