@@ -30,7 +30,7 @@ void poll_mouse_movement(Camera3D *);
 #define CAM_ORIGIN \
   ((Vector3){SZ_WORLD * 0.66, SZ_WORLD * 0.375, SZ_WORLD * 0.5})
 
-int SEED = 69420;
+int SEED = 9001;
 
 Camera3D cam_init_scene(Vector3 *);
 Model mdl_gen_checkerboard(void);
@@ -52,15 +52,15 @@ int main(void) {
 
   Camera3D cam_scene = cam_init_scene(&player_position);
 
-  VoxelScape vxl_scape = voxel_gen_perlin_scape(CHUNK_X, CHUNK_Z, CHUNK_Y,
-                                                SEED, fd_perlin);
-  voxel_cull_occluded(&vxl_scape);
-  Model mdl_terrain_chunk = voxel_terrain_model_from_scape(&vxl_scape);
-
 
   while(!WindowShouldClose()) {
     poll_key_presses(&cam_scene, &world_position);
     poll_mouse_movement(&cam_scene);
+
+  VoxelScape vxl_scape = voxel_gen_perlin_scape(CHUNK_X, CHUNK_Z, CHUNK_Y,
+                                                SEED, fd_perlin);
+  voxel_cull_occluded(&vxl_scape);
+  Model mdl_terrain_chunk = voxel_terrain_model_from_scape(&vxl_scape);
     BeginDrawing();
       ClearBackground(BLACK);
 
@@ -71,10 +71,11 @@ int main(void) {
 
       PROC_INFO_DRAW(PROC_INFO_FLAG_ALL);
     EndDrawing();
-  }
 
   UnloadModel(mdl_terrain_chunk);
   voxel_destroy_scape(&vxl_scape);
+
+  }
   CloseWindow();
   return EXIT_SUCCESS;
 }
@@ -88,10 +89,10 @@ void poll_mouse_movement(Camera3D *cam) {
 void poll_key_presses(Camera3D *cam, Vector3 *pos) {
 #define SPEED (0.25f * SCREEN_WIDTH / SCREEN_HEIGHT)
   Vector3 dp = {0};
-  if (IsKeyDown(KEY_W))    {dp.z += 1; dp.x += 1;}
-  if (IsKeyDown(KEY_A))    {dp.z -= 1; dp.x += 1;}
-  if (IsKeyDown(KEY_S))    {dp.z -= 1; dp.x -= 1;}
-  if (IsKeyDown(KEY_D))    {dp.x -= 1; dp.z += 1;}
+  if (IsKeyDown(KEY_W)) {dp.z += 1; dp.x += 1;}
+  if (IsKeyDown(KEY_A)) {dp.z -= 1; dp.x += 1;}
+  if (IsKeyDown(KEY_S)) {dp.z -= 1; dp.x -= 1;}
+  if (IsKeyDown(KEY_D)) {dp.x -= 1; dp.z += 1;}
 
   if (IsKeyDown(KEY_N)) {
     int *s_ptr = &SEED;

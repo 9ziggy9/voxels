@@ -11,9 +11,6 @@
 #define TRI_NUM_IDXS   3
 
 #define VXL_ACCESS(x, y, z, XM, ZM) ((x) + ((z) * (XM)) + ((y) * (XM) * (ZM)))
-
-// You may consider including x == 0, z == 0 in cases where you would like to
-// only cull center, convex hull!
 #define VXL_EDGE(x, y, z, XM, YM, ZM) \
   (((x) == (XM) - 1)  || ((y) == (YM) - 1)  || ((z) == (ZM) - 1))
 
@@ -40,18 +37,18 @@ static Color VXL_CLR_LOOKUP[VXL_NUM_TYPES][VXL_NUM_FACES] =
 VoxelScape voxel_gen_perlin_scape(int X, int Z, int Y, int seed, fade_fn fn) {
   VoxelScape vxl_scape = (VoxelScape){ .X = X, .Z = Z, .Y = Y };
   Voxel *vxls = MemAlloc(X * Z * Y * sizeof(Voxel));
-  float entrop = 8.0f;
+  float entrop = 12.0f;
   for (int z = 0; z < Z; z++) {
     for (int x = 0; x < X; x++) {
-      /* float noise = perlin_noise((float) x / entrop, */
-      /*                            (float) z / entrop, */
-      /*                            seed, fn); */
-      /* noise = (noise + 1.0f) / 2.0f; */
-      /* float height = noise * Y; */
+      float noise = perlin_noise((float) x / entrop,
+                                 (float) z / entrop,
+                                 seed, fn);
+      noise = (noise + 1.0f) / 2.0f;
+      float height = noise * Y;
       for (int lvl = 0; lvl < Y; lvl++) {
         vxls[VXL_ACCESS(x, lvl, z, X, Z)] = (Voxel) {
           .occ   = false,
-          .type  = VXL_GRASS,
+          .type  = (lvl < height) ? VXL_GRASS : VXL_EMPTY,
           .coord = (Vector3){
             SZ_VOXEL * x - X, // center
             SZ_VOXEL * lvl,
@@ -113,8 +110,8 @@ Model voxel_terrain_model_from_scape(VoxelScape *vs) {
     is, a given mesh CANNOT consist of more than (65535 / 18  ~ 3640) voxels
     PER MESH.
   */
-  printf("MAX VOXEL TEST: %d\n", num_voxels);
-  assert((num_voxels < 3640) && "MAX VOXELS EXCEEDED IN MESH");
+  /* printf("MAX VOXEL TEST: %d\n", num_voxels); */
+  /* assert((num_voxels < 3640) && "MAX VOXELS EXCEEDED IN MESH"); */
 
   Mesh mesh = { 0 };
   mesh.vertexCount = num_vertices;

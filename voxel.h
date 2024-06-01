@@ -4,13 +4,10 @@
 #include <string.h>
 #include "noise.h"
 
-#define SZ_VOXEL 2
-/* #define CHUNK_X  21 */
-/* #define CHUNK_Z  21 */
-/* #define CHUNK_Y  8 */
-#define CHUNK_X  4
-#define CHUNK_Z  4
-#define CHUNK_Y  4
+#define SZ_VOXEL 1
+#define CHUNK_X  60
+#define CHUNK_Z  60
+#define CHUNK_Y  10
 
 #define VXL_NUM_TYPES 2
 typedef enum {
