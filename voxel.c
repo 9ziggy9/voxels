@@ -11,9 +11,11 @@
 #define TRI_NUM_IDXS   3
 
 #define VXL_ACCESS(x, y, z, XM, ZM) ((x) + ((z) * (XM)) + ((y) * (XM) * (ZM)))
-#define VXL_EDGE(V, X, Y, Z) ((V.x == 0 || V.x >= X - 1) \
-  || (V.y == 0 || V.y >= Y - 1) \
-  || (V.z == 0 || V.z >= Z - 1))
+
+// You may consider including x == 0, z == 0 in cases where you would like to
+// only cull center, convex hull!
+#define VXL_EDGE(x, y, z, XM, YM, ZM) \
+  (((x) == (XM) - 1)  || ((y) == (YM) - 1)  || ((z) == (ZM) - 1))
 
 static float VXL_VERT_LOOKUP[VXL_NUM_FACES][FACE_NUM_VERTS][TRI_NUM_VERTS] =
   {
@@ -66,27 +68,30 @@ VoxelScape voxel_gen_perlin_scape(int X, int Z, int Y, int seed, fade_fn fn) {
 void voxel_destroy_scape(VoxelScape *vs) { free(vs->vxls); vs->vxls = NULL; }
 
 void voxel_cull_occluded(VoxelScape *vs) {
+  Voxel *diff = MemAlloc(vs->X * vs->Z * vs->Y * sizeof(Voxel));
+  memcpy(diff, vs->vxls, vs->X * vs->Z * vs->Y * sizeof(Voxel));
+  int occ_count = 0;
   for (int z = 0; z < vs->Z; z++) {
     for (int x = 0; x < vs->X; x++) {
       for (int y = 0; y < vs->Y; y++) {
+        Voxel dv = diff[VXL_ACCESS(x, y, z, vs->X, vs->Z)];
         Voxel *v = &vs->vxls[VXL_ACCESS(x, y, z, vs->X, vs->Z)];
-        /* if (v->type == VXL_EMPTY) { v->occ = true; continue; } */
-        if (VXL_EDGE((*v).coord, vs->X, vs->Y, vs->Z)) {
-          v->occ = false;
-          continue;
-        }
+        if (dv.type == VXL_EMPTY) { v->occ = true; continue; }
+        if (VXL_EDGE(x, y, z, vs->X, vs->Y, vs->Z)) continue;
         uint8_t occ = 0; // shift 1s for occluded faces
-        Voxel *v_above = &vs->vxls[VXL_ACCESS(x, y + 1, z, vs->X, vs->Z)];
-        Voxel *v_front = &vs->vxls[VXL_ACCESS(x, y, z + 1, vs->X, vs->Z)];
-        Voxel *v_right = &vs->vxls[VXL_ACCESS(x + 1, y, z, vs->X, vs->Z)];
-        if (v_above->type != VXL_EMPTY) occ |= (1 << 0);
-        if (v_front->type != VXL_EMPTY) occ |= (1 << 1);
-        if (v_right->type != VXL_EMPTY) occ |= (1 << 2);
-        if (occ == 7) printf("OCCLUDED A VOXEL\n");
+        Voxel dv_above = diff[VXL_ACCESS(x, y + 1, z, vs->X, vs->Z)];
+        Voxel dv_front = diff[VXL_ACCESS(x, y, z + 1, vs->X, vs->Z)];
+        Voxel dv_right = diff[VXL_ACCESS(x + 1, y, z, vs->X, vs->Z)];
+        if (dv_above.type != VXL_EMPTY) occ |= (1 << 0);
+        if (dv_front.type != VXL_EMPTY) occ |= (1 << 1);
+        if (dv_right.type != VXL_EMPTY) occ |= (1 << 2);
+        if (occ == 7) occ_count++;
         v->occ = (occ == 7); // 7 == 0b111
       }
     }
   }
+  MemFree(diff);
+  printf("\nOCCLUDED: %d VOXEL(s) in TOTAL\n\n", occ_count);
 }
 
 Model voxel_terrain_model_from_scape(VoxelScape *vs) {

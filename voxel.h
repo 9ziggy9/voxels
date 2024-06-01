@@ -8,9 +8,9 @@
 /* #define CHUNK_X  21 */
 /* #define CHUNK_Z  21 */
 /* #define CHUNK_Y  8 */
-#define CHUNK_X  3
-#define CHUNK_Z  3
-#define CHUNK_Y  3
+#define CHUNK_X  4
+#define CHUNK_Z  4
+#define CHUNK_Y  4
 
 #define VXL_NUM_TYPES 2
 typedef enum {
