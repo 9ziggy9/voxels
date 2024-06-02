@@ -23,13 +23,13 @@ void exit_clean_procedure(int, void *);
 void poll_key_presses(Camera3D *, Vector3 *);
 void poll_mouse_movement(Camera3D *);
 
-#define SZ_WORLD   500
+#define SZ_WORLD (LAST_X_CHUNK * CHUNK_X) * (LAST_Z_CHUNK * CHUNK_Z)
 #define SZ_CHECKER 2
 
 #define WORLD_ORIGIN ((Vector3){0, 0, 0})
-#define CAM_ORIGIN \
-  ((Vector3){SZ_WORLD * 0.66, SZ_WORLD * 0.375, SZ_WORLD * 0.5})
-
+#define CAM_ORIGIN   ((Vector3){ LAST_X_CHUNK * CHUNK_X * 0.66,  \
+                                 CHUNK_Y * 0.86,                 \
+                                 LAST_Z_CHUNK * CHUNK_Z * 0.5})
 int SEED = 9001;
 
 Camera3D cam_init_scene(Vector3 *);
@@ -52,30 +52,30 @@ int main(void) {
 
   Camera3D cam_scene = cam_init_scene(&player_position);
 
+  VoxelScape vxl_scape = voxel_gen_perlin_scape(LAST_X_CHUNK * CHUNK_X,
+                                                LAST_Z_CHUNK * CHUNK_Z,
+                                                CHUNK_Y, SEED, fd_perlin);
+  voxel_cull_occluded(&vxl_scape);
+  Model mdl_terrain = voxel_terrain_model_from_region(&vxl_scape,
+                                                      1, 2,
+                                                      1, 2);
 
   while(!WindowShouldClose()) {
     poll_key_presses(&cam_scene, &world_position);
     poll_mouse_movement(&cam_scene);
-
-  VoxelScape vxl_scape = voxel_gen_perlin_scape(CHUNK_X, CHUNK_Z, CHUNK_Y,
-                                                SEED, fd_perlin);
-  voxel_cull_occluded(&vxl_scape);
-  Model mdl_terrain_chunk = voxel_terrain_model_from_scape(&vxl_scape);
     BeginDrawing();
       ClearBackground(BLACK);
-
       BeginMode3D(cam_scene);
         DrawModel(mdl_cb, world_position, 1.0f, WHITE);
-        DrawModel(mdl_terrain_chunk, world_position, 1.0f, WHITE);
+        DrawModel(mdl_terrain, world_position, 1.0f, WHITE);
       EndMode3D();
-
       PROC_INFO_DRAW(PROC_INFO_FLAG_ALL);
     EndDrawing();
 
-  UnloadModel(mdl_terrain_chunk);
-  voxel_destroy_scape(&vxl_scape);
-
   }
+
+  UnloadModel(mdl_terrain);
+  voxel_destroy_scape(&vxl_scape);
   CloseWindow();
   return EXIT_SUCCESS;
 }
@@ -121,12 +121,16 @@ Camera3D cam_init_scene(Vector3 *player_position) {
 }
 
 Model mdl_gen_checkerboard(void) {
-  Image img_checked = GenImageChecked(SZ_WORLD, SZ_WORLD, SZ_CHECKER,
-                                      SZ_CHECKER, BLUE, DARKBLUE);
+  Image img_checked = GenImageChecked(LAST_X_CHUNK * CHUNK_X,
+                                      LAST_Z_CHUNK * CHUNK_Z,
+                                      SZ_CHECKER, SZ_CHECKER,
+                                      BLUE, DARKBLUE);
+
   Texture2D txtr_cb = LoadTextureFromImage(img_checked);
   UnloadImage(img_checked);
 
-  Model mdl_cb = LoadModelFromMesh(GenMeshPlane(SZ_WORLD, SZ_WORLD, 1, 1));
+  Model mdl_cb = LoadModelFromMesh(GenMeshPlane(LAST_X_CHUNK * CHUNK_X,
+                                                LAST_Z_CHUNK * CHUNK_Z, 1, 1));
   mdl_cb.materials[0].maps[MATERIAL_MAP_DIFFUSE].texture = txtr_cb;
   return mdl_cb;
 }

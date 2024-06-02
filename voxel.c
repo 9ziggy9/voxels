@@ -12,7 +12,7 @@
 
 #define VXL_ACCESS(x, y, z, XM, ZM) ((x) + ((z) * (XM)) + ((y) * (XM) * (ZM)))
 #define VXL_EDGE(x, y, z, XM, YM, ZM) \
-  (((x) == (XM) - 1)  || ((y) == (YM) - 1)  || ((z) == (ZM) - 1))
+  (((x) >= (XM - 1))  || ((y) >= (YM) - 1)  || ((z) >= (ZM) - 1))
 
 static float VXL_VERT_LOOKUP[VXL_NUM_FACES][FACE_NUM_VERTS][TRI_NUM_VERTS] =
   {
@@ -37,7 +37,7 @@ static Color VXL_CLR_LOOKUP[VXL_NUM_TYPES][VXL_NUM_FACES] =
 VoxelScape voxel_gen_perlin_scape(int X, int Z, int Y, int seed, fade_fn fn) {
   VoxelScape vxl_scape = (VoxelScape){ .X = X, .Z = Z, .Y = Y };
   Voxel *vxls = MemAlloc(X * Z * Y * sizeof(Voxel));
-  float entrop = 12.0f;
+  float entrop = 9.0f;
   for (int z = 0; z < Z; z++) {
     for (int x = 0; x < X; x++) {
       float noise = perlin_noise((float) x / entrop,
@@ -50,9 +50,9 @@ VoxelScape voxel_gen_perlin_scape(int X, int Z, int Y, int seed, fade_fn fn) {
           .occ   = false,
           .type  = (lvl < height) ? VXL_GRASS : VXL_EMPTY,
           .coord = (Vector3){
-            SZ_VOXEL * x - X, // center
-            SZ_VOXEL * lvl,
-            SZ_VOXEL * z - Z, // center
+            (float) SZ_VOXEL * x - (float) X / 2.0f, // center
+            (float) SZ_VOXEL * lvl,
+            (float) SZ_VOXEL * z - (float) Z / 2.0f, // center
           },
         };
       }
@@ -74,7 +74,7 @@ void voxel_cull_occluded(VoxelScape *vs) {
         Voxel dv = diff[VXL_ACCESS(x, y, z, vs->X, vs->Z)];
         Voxel *v = &vs->vxls[VXL_ACCESS(x, y, z, vs->X, vs->Z)];
         if (dv.type == VXL_EMPTY) { v->occ = true; continue; }
-        if (VXL_EDGE(x, y, z, vs->X, vs->Y, vs->Z)) continue;
+        if (VXL_EDGE(x, y, z, vs->X, vs->Y, vs->Z)) continue; 
         uint8_t occ = 0; // shift 1s for occluded faces
         Voxel dv_above = diff[VXL_ACCESS(x, y + 1, z, vs->X, vs->Z)];
         Voxel dv_front = diff[VXL_ACCESS(x, y, z + 1, vs->X, vs->Z)];
@@ -88,30 +88,33 @@ void voxel_cull_occluded(VoxelScape *vs) {
     }
   }
   MemFree(diff);
-  printf("\nOCCLUDED: %d VOXEL(s) in TOTAL\n\n", occ_count);
+  printf("\nOCCLUSION: CULLED %d VOXEL(s) in TOTAL\n\n", occ_count);
 }
 
-Model voxel_terrain_model_from_scape(VoxelScape *vs) {
-  int num_voxels = vs->X * vs->Y * vs->Z;
+Mesh
+voxel_terrain_mesh_from_region(VoxelScape *vs, int ix0, int ixE,
+                                               int iz0, int izE)
+{
+  ix0 *= CHUNK_X;
+  iz0 *= CHUNK_Z;
+  ixE *= CHUNK_X;
+  izE *= CHUNK_Z;
+
   int num_vertices = 0;
   int num_indices = 0;
 
-  for (int i = 0; i < num_voxels; i++) {
-    Voxel v = vs->vxls[i];
-    if (!v.occ) {
-      num_vertices += VXL_NUM_FACES * FACE_NUM_VERTS;
-      num_indices  += VXL_NUM_FACES * FACE_NUM_TRIS *  TRI_NUM_IDXS;
+  for (int iz = iz0; iz < izE; iz++) {
+    for (int ix = ix0; ix < ixE; ix++) {
+      for(int iy = 0; iy < vs->Y; iy++) {
+        Voxel v = vs->vxls[VXL_ACCESS(ix, iy, iz, vs->X, vs->Z)];
+        if (!v.occ) {
+          num_vertices += VXL_NUM_FACES * FACE_NUM_VERTS;
+          num_indices  += VXL_NUM_FACES * FACE_NUM_TRIS *  TRI_NUM_IDXS;
+        }
+      }
     }
   }
-
-  /*
-    EXTREMELY IMPORTANT NOTE!
-    The maximum number of allowed voxels *MUST* conform to a max uint16; that
-    is, a given mesh CANNOT consist of more than (65535 / 18  ~ 3640) voxels
-    PER MESH.
-  */
-  /* printf("MAX VOXEL TEST: %d\n", num_voxels); */
-  /* assert((num_voxels < 3640) && "MAX VOXELS EXCEEDED IN MESH"); */
+  printf("\n\nNUMS: (%d, %d) \n\n\n", num_vertices, num_indices);
 
   Mesh mesh = { 0 };
   mesh.vertexCount = num_vertices;
@@ -120,39 +123,48 @@ Model voxel_terrain_model_from_scape(VoxelScape *vs) {
   mesh.indices  = (uint16_t *) MemAlloc(num_indices * sizeof(uint16_t));
   mesh.colors   = (uint8_t *)  MemAlloc(num_vertices * 4 * sizeof(uint8_t));
 
-  // populate mesh
   int vertex_idx = 0; int iidx = 0; int el = 0;
-  for (int n = 0; n < num_voxels; n++) {
-    Voxel v = vs->vxls[n];
-    if (!v.occ) {
-      Color *colors = VXL_CLR_LOOKUP[v.type];
-      for (int face = 0; face < VXL_NUM_FACES; face++) {
-        Color color = colors[face];
-        for (int vert = 0; vert < FACE_NUM_VERTS; vert++) {
-          int idx = vertex_idx * 3;
-          mesh.vertices[idx]
-            = v.coord.x + SZ_VOXEL * VXL_VERT_LOOKUP[face][vert][0];
-          mesh.vertices[idx + 1]
-            = v.coord.y + SZ_VOXEL * VXL_VERT_LOOKUP[face][vert][1];
-          mesh.vertices[idx + 2]
-            = v.coord.z + SZ_VOXEL * VXL_VERT_LOOKUP[face][vert][2];
-          idx = vertex_idx * 4;
-          mesh.colors[idx]     = color.r;
-          mesh.colors[idx + 1] = color.g;
-          mesh.colors[idx + 2] = color.b;
-          mesh.colors[idx + 3] = color.a;
-          vertex_idx++;
-        }
+  for (int iz = iz0; iz < izE; iz++) {
+    for (int ix = ix0; ix < ixE; ix++) {
+      for (int iy = 0; iy < vs->Y; iy++) {
+        Voxel v = vs->vxls[VXL_ACCESS(ix, iy, iz, vs->X, vs->Z)];
+        if (!v.occ) {
+          Color *colors = VXL_CLR_LOOKUP[v.type];
+          for (int face = 0; face < VXL_NUM_FACES; face++) {
+            Color color = colors[face];
+            for (int vert = 0; vert < FACE_NUM_VERTS; vert++) {
+              int idx = vertex_idx * 3;
+              mesh.vertices[idx]
+                = v.coord.x + SZ_VOXEL * VXL_VERT_LOOKUP[face][vert][0];
+              mesh.vertices[idx + 1]
+                = v.coord.y + SZ_VOXEL * VXL_VERT_LOOKUP[face][vert][1];
+              mesh.vertices[idx + 2]
+                = v.coord.z + SZ_VOXEL * VXL_VERT_LOOKUP[face][vert][2];
+              idx = vertex_idx * 4;
+              mesh.colors[idx]     = color.r;
+              mesh.colors[idx + 1] = color.g;
+              mesh.colors[idx + 2] = color.b;
+              mesh.colors[idx + 3] = color.a;
+              vertex_idx++;
+            }
 #define IDX(N, I)  mesh.indices[N] = I
-        IDX(iidx + 0, el + 0);  IDX(iidx + 1, el + 1); IDX(iidx + 2, el + 2);
-        IDX(iidx + 3, el + 0);  IDX(iidx + 4, el + 2); IDX(iidx + 5, el + 3);
-        iidx += 6; el += 4;
+            IDX(iidx + 0, el + 0); IDX(iidx + 1, el + 1); IDX(iidx + 2, el + 2);
+            IDX(iidx + 3, el + 0); IDX(iidx + 4, el + 2); IDX(iidx + 5, el + 3);
+            iidx += 6; el += 4;
+          }
+        }
       }
     }
   }
   UploadMesh(&mesh, false);
-  Model model = LoadModelFromMesh(mesh);
-  return model;
+  return mesh;
+}
+
+Model voxel_terrain_model_from_region(VoxelScape *vs, int ix0, int ixE,
+                                                      int iz0, int izE)
+{
+  return
+    LoadModelFromMesh(voxel_terrain_mesh_from_region(vs, ix0, ixE, iz0, izE));
 }
 
 /* DEPRECATED and/or EXPERIMENTAL */
