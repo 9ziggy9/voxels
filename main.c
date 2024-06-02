@@ -28,7 +28,7 @@ void poll_mouse_movement(Camera3D *);
 
 #define WORLD_ORIGIN ((Vector3){0, 0, 0})
 #define CAM_ORIGIN   ((Vector3){ LAST_X_CHUNK * CHUNK_X * 0.66,  \
-                                 CHUNK_Y * 0.86,                 \
+                                 CHUNK_Y * CHUNK_Z,              \
                                  LAST_Z_CHUNK * CHUNK_Z * 0.5})
 int SEED = 9001;
 
@@ -56,9 +56,7 @@ int main(void) {
                                                 LAST_Z_CHUNK * CHUNK_Z,
                                                 CHUNK_Y, SEED, fd_perlin);
   voxel_cull_occluded(&vxl_scape);
-  Model mdl_terrain = voxel_terrain_model_from_region(&vxl_scape,
-                                                      1, 2,
-                                                      1, 2);
+  TerrainView terrain = voxel_load_terrain_models(&vxl_scape);
 
   while(!WindowShouldClose()) {
     poll_key_presses(&cam_scene, &world_position);
@@ -67,14 +65,16 @@ int main(void) {
       ClearBackground(BLACK);
       BeginMode3D(cam_scene);
         DrawModel(mdl_cb, world_position, 1.0f, WHITE);
-        DrawModel(mdl_terrain, world_position, 1.0f, WHITE);
+        for (uint32_t n = 0; n < terrain.count; n++) {
+          DrawModel(terrain.views[n], world_position, 1.0f, WHITE);
+        }
       EndMode3D();
       PROC_INFO_DRAW(PROC_INFO_FLAG_ALL);
     EndDrawing();
 
   }
 
-  UnloadModel(mdl_terrain);
+  voxel_unload_terrain_models(&terrain);
   voxel_destroy_scape(&vxl_scape);
   CloseWindow();
   return EXIT_SUCCESS;
@@ -115,7 +115,7 @@ Camera3D cam_init_scene(Vector3 *player_position) {
     .position   = CAM_ORIGIN,
     .target     = *player_position,
     .up         = (Vector3){0.0f, 1.0f, 0.0f},
-    .fovy       = 66.0f,
+    .fovy       = 52.5f,
     .projection = CAMERA_ORTHOGRAPHIC,
   };
 }

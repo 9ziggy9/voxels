@@ -1,6 +1,5 @@
 #include "voxel.h"
 #include <raymath.h>
-#include <stdint.h>
 #include <stdio.h>
 #include <assert.h>
 
@@ -37,7 +36,7 @@ static Color VXL_CLR_LOOKUP[VXL_NUM_TYPES][VXL_NUM_FACES] =
 VoxelScape voxel_gen_perlin_scape(int X, int Z, int Y, int seed, fade_fn fn) {
   VoxelScape vxl_scape = (VoxelScape){ .X = X, .Z = Z, .Y = Y };
   Voxel *vxls = MemAlloc(X * Z * Y * sizeof(Voxel));
-  float entrop = 9.0f;
+  float entrop = (float) LAST_X_CHUNK * LAST_Z_CHUNK / CHUNK_Y;
   for (int z = 0; z < Z; z++) {
     for (int x = 0; x < X; x++) {
       float noise = perlin_noise((float) x / entrop,
@@ -114,7 +113,6 @@ voxel_terrain_mesh_from_region(VoxelScape *vs, int ix0, int ixE,
       }
     }
   }
-  printf("\n\nNUMS: (%d, %d) \n\n\n", num_vertices, num_indices);
 
   Mesh mesh = { 0 };
   mesh.vertexCount = num_vertices;
@@ -165,6 +163,31 @@ Model voxel_terrain_model_from_region(VoxelScape *vs, int ix0, int ixE,
 {
   return
     LoadModelFromMesh(voxel_terrain_mesh_from_region(vs, ix0, ixE, iz0, izE));
+}
+
+TerrainView voxel_load_terrain_models(VoxelScape *vs) {
+  int num_models_x = vs->X / CHUNK_X;
+  int num_models_z = vs->Z / CHUNK_Z;
+
+  Model *views =
+    (Model *) MemAlloc((num_models_x * num_models_z) * sizeof(Model));
+
+  int model_idx = 0;
+  for (int iz = 0; iz < num_models_z; iz++) {
+    for (int ix = 0; ix < num_models_x; ix++) {
+      views[model_idx++] =
+        voxel_terrain_model_from_region(vs, ix, ix + 1, iz, iz + 1);
+    }
+  }
+
+  return (TerrainView) { .views = views, .count = num_models_x * num_models_z };
+}
+
+void voxel_unload_terrain_models(TerrainView *tv) {
+  for (uint32_t n = 0; n < tv->count; n++) {
+    UnloadModel(tv->views[n]);
+  }
+  MemFree(tv->views);
 }
 
 /* DEPRECATED and/or EXPERIMENTAL */
