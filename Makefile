@@ -7,18 +7,24 @@ TRASH=$(EXE) libvoxel.so voxel.o noise.o
 
 .PHONY: clean install_raylib
 
-main: noise.o main.c libvoxel.so
-	$(CC) $(CFLAGS) -o $(EXE) main.c -L. noise.o -lvoxel $(RAYLIB_STATIC_LIB) -lGL \
-	-lm -lpthread -ldl -lrt -lX11 -Wl,-rpath,.
+main: camera.o noise.o main.c libvoxel.so
+	$(CC) $(CFLAGS) -o $(EXE) main.c -L. noise.o camera.o \
+	-lvoxel $(RAYLIB_STATIC_LIB) -lGL -lm -lpthread -ldl -lrt -lX11 -Wl,-rpath,.
 
 libvoxel.so: voxel.o
 	$(CC) -shared -o libvoxel.so voxel.o
+
+world.o: world.c
+	$(CC) $(CFLAGS) -c world.c -I$(RAYLIB_PATH)/src
 
 voxel.o: voxel.c
 	$(CC) $(CFLAGS) -c voxel.c -I$(RAYLIB_PATH)/src
 
 noise.o: noise.c
 	$(CC) $(CFLAGS) -c noise.c -I$(RAYLIB_PATH)/src
+
+camera.o: camera.c
+	$(CC) $(CFLAGS) -c camera.c -I$(RAYLIB_PATH)/src
 
 install_raylib:
 	mkdir -p raylib/build

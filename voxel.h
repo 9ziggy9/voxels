@@ -6,17 +6,18 @@
 #include "noise.h"
 
 #define SZ_VOXEL 1
-#define CHUNK_X  21
-#define CHUNK_Z  21
-#define CHUNK_Y  8
+#define CHUNK_X  16
+#define CHUNK_Z  16
+#define CHUNK_Y  10
 
 #define LAST_X_CHUNK 20
-#define LAST_Z_CHUNK 5
+#define LAST_Z_CHUNK 20
 
-#define VXL_NUM_TYPES 2
+#define VXL_NUM_TYPES 3
 typedef enum {
   VXL_EMPTY,
   VXL_GRASS,
+  VXL_WATER,
 } vxl_t;
 
 typedef struct {

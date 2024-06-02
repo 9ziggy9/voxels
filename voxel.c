@@ -27,10 +27,12 @@ static float VXL_VERT_LOOKUP[VXL_NUM_FACES][FACE_NUM_VERTS][TRI_NUM_VERTS] =
 #define VXL_CLR_DBROWN {51, 13, 16, 255}
 #define VXL_CLR_BROWN  {71, 47, 25, 255}
 #define VXL_CLR_GREEN  {27, 74, 23, 255}
+#define VXL_CLR_BLUE   {70, 70, 255, 200}
 static Color VXL_CLR_LOOKUP[VXL_NUM_TYPES][VXL_NUM_FACES] =
   {
     /*VXL_EMPTY*/ {VXL_CLR_NONE,   VXL_CLR_NONE,  VXL_CLR_NONE},
-    /*VXL_GRASS*/ {VXL_CLR_DBROWN, VXL_CLR_BROWN, VXL_CLR_GREEN},
+    /*VXL_GRASS*/ {VXL_CLR_DBROWN, VXL_CLR_DBROWN, VXL_CLR_GREEN},
+    /*VXL_WATER*/ {VXL_CLR_BLUE, VXL_CLR_BLUE, VXL_CLR_BLUE},
   };
 
 VoxelScape voxel_gen_perlin_scape(int X, int Z, int Y, int seed, fade_fn fn) {
@@ -47,7 +49,11 @@ VoxelScape voxel_gen_perlin_scape(int X, int Z, int Y, int seed, fade_fn fn) {
       for (int lvl = 0; lvl < Y; lvl++) {
         vxls[VXL_ACCESS(x, lvl, z, X, Z)] = (Voxel) {
           .occ   = false,
-          .type  = (lvl < height) ? VXL_GRASS : VXL_EMPTY,
+          .type  = (lvl < height)
+                      ? (lvl < 2)
+                        ? VXL_WATER
+                        : VXL_GRASS
+                      : VXL_EMPTY,
           .coord = (Vector3){
             (float) SZ_VOXEL * x - (float) X / 2.0f, // center
             (float) SZ_VOXEL * lvl,

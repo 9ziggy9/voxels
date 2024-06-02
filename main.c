@@ -7,6 +7,7 @@
 
 #include "config.h"
 #include "voxel.h"
+#include "camera.h"
 
 #define MEM_MAX_CAP (1024 * 1024 * 500)
 #define LOAD_PROC_INFO
@@ -27,12 +28,8 @@ void poll_mouse_movement(Camera3D *);
 #define SZ_CHECKER 2
 
 #define WORLD_ORIGIN ((Vector3){0, 0, 0})
-#define CAM_ORIGIN   ((Vector3){ LAST_X_CHUNK * CHUNK_X * 0.66,  \
-                                 CHUNK_Y * CHUNK_Z,              \
-                                 LAST_Z_CHUNK * CHUNK_Z * 0.5})
 int SEED = 9001;
 
-Camera3D cam_init_scene(Vector3 *);
 Model mdl_gen_checkerboard(void);
 
 int main(void) {
@@ -50,7 +47,9 @@ int main(void) {
   Vector3 player_position = {0};
   Vector3 world_position = WORLD_ORIGIN;
 
+  Frustum fstm;
   Camera3D cam_scene = cam_init_scene(&player_position);
+  cam_get_frustum(cam_scene, &fstm);
 
   VoxelScape vxl_scape = voxel_gen_perlin_scape(LAST_X_CHUNK * CHUNK_X,
                                                 LAST_Z_CHUNK * CHUNK_Z,
@@ -108,16 +107,6 @@ void poll_key_presses(Camera3D *cam, Vector3 *pos) {
 
   if (IsKeyPressed(KEY_ESCAPE)) CLOSE_WITH(EXIT_SUCCESS, "Exit key pressed.");
   if (IsKeyPressed(KEY_Q))      CLOSE_WITH(EXIT_SUCCESS, "Exit key pressed.");
-}
-
-Camera3D cam_init_scene(Vector3 *player_position) {
-  return (Camera3D) {
-    .position   = CAM_ORIGIN,
-    .target     = *player_position,
-    .up         = (Vector3){0.0f, 1.0f, 0.0f},
-    .fovy       = 52.5f,
-    .projection = CAMERA_ORTHOGRAPHIC,
-  };
 }
 
 Model mdl_gen_checkerboard(void) {
