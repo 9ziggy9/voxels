@@ -7,13 +7,11 @@ in vec3 fragPos;
 
 out vec4 outColor;
 
-uniform vec3 sunPos;
-uniform float coneAngleDegs;
+vec3 lightDir = vec3(0.0, 0.0, 1.0);
+float coneAngle = radians(30.0);
 
 void main() {
-  float coneAngle = radians(coneAngleDegs);
   vec3 viewDir    = normalize(fragPos);
-  vec3 lightDir   = normalize(sunPos - fragPos);
   float angle     = acos(dot(viewDir, lightDir));
   float intensity = smoothstep(coneAngle, coneAngle * 0.9, angle);
   outColor        = mix(vec4(0.0, 0.0, 0.0, 1.0), fragColor, intensity);

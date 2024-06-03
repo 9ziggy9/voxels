@@ -29,8 +29,6 @@ void poll_mouse_movement(Camera3D *);
 
 Model mdl_gen_checkerboard(void);
 
-float shade_ambient_val = 0.125f;
-
 int main(void) {
   on_exit(exit_clean_procedure, NULL);
   PROC_INFO_BOOTSTRAP();
@@ -47,18 +45,17 @@ int main(void) {
   Vector3 world_position = WORLD_ORIGIN;
 
   CamView cam = {
-    .scene = cam_init_scene(&player_position),
-    .sun   = cam_init_sun()
+    .scene      = cam_init_scene(&player_position),
+    .sun        = cam_init_sun(),
+    .light_cone = 90.0f,
   };
   cam.current = &cam.scene;
 
   Shader shade_sun = LoadShader("shaders/sun.vs", "shaders/sun.fs");
   SetShaderValue(shade_sun, GetShaderLocation(shade_sun, "sunPos"),
                  &cam.sun.position, SHADER_UNIFORM_VEC3);
-  SetShaderValue(shade_sun, GetShaderLocation(shade_sun, "sunTargPos"),
-                  &cam.sun.target, SHADER_UNIFORM_FLOAT);
-  SetShaderValue(shade_sun, GetShaderLocation(shade_sun, "ambient"),
-                  &shade_ambient_val, SHADER_UNIFORM_FLOAT);
+  SetShaderValue(shade_sun, GetShaderLocation(shade_sun, "coneAngleDegs"),
+                 &cam.light_cone, SHADER_UNIFORM_FLOAT);
 
   VoxelScape vxl_scape = voxel_gen_perlin_scape(LAST_X_CHUNK * CHUNK_X,
                                                 LAST_Z_CHUNK * CHUNK_Z,
@@ -115,15 +112,28 @@ void poll_key_presses(CamView *cv, Vector3 *pos, Shader sh) {
   if (IsKeyPressed(KEY_ESCAPE)) CLOSE_WITH(EXIT_SUCCESS, "Exit key pressed.");
   if (IsKeyPressed(KEY_Q))      CLOSE_WITH(EXIT_SUCCESS, "Exit key pressed.");
 
-  if (IsKeyPressed(KEY_K)) {
-    shade_ambient_val += 0.05f;
-    SetShaderValue(sh, GetShaderLocation(sh, "ambient"),
-                   &shade_ambient_val, SHADER_UNIFORM_FLOAT);
+  // also need to update target
+  static const Vector3 dsun = (Vector3){1.0f, 0.0f, 1.0f};
+  static const float dtheta = 5.0f;
+  if (IsKeyDown(KEY_K)) {
+    cv->sun.position = Vector3Add(cv->sun.position, dsun);
+    SetShaderValue(sh, GetShaderLocation(sh, "sunPos"),
+                   &cv->sun.position, SHADER_UNIFORM_VEC3);
   }
-  if (IsKeyPressed(KEY_J)) {
-    shade_ambient_val -= 0.05f;
-    SetShaderValue(sh, GetShaderLocation(sh, "ambient"),
-                   &shade_ambient_val, SHADER_UNIFORM_FLOAT);
+  if (IsKeyDown(KEY_J)) {
+    cv->sun.position = Vector3Subtract(cv->sun.position, dsun);
+    SetShaderValue(sh, GetShaderLocation(sh, "sunPos"),
+                   &cv->sun.position, SHADER_UNIFORM_VEC3);
+  }
+  if (IsKeyDown(KEY_L)) {
+    cv->light_cone += dtheta;
+    SetShaderValue(sh, GetShaderLocation(sh, "coneAngleDegs"),
+                   &cv->light_cone, SHADER_UNIFORM_FLOAT);
+  }
+  if (IsKeyDown(KEY_H)) {
+    cv->light_cone -= dtheta;
+    SetShaderValue(sh, GetShaderLocation(sh, "coneAngleDegs"),
+                   &cv->light_cone, SHADER_UNIFORM_FLOAT);
   }
 }
 
