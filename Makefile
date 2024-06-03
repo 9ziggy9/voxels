@@ -3,28 +3,21 @@ CFLAGS=-Wall -Wextra -pedantic -fPIC
 RAYLIB_PATH=./raylib/build/raylib
 RAYLIB_STATIC_LIB=$(RAYLIB_PATH)/libraylib.a
 EXE=./run
-TRASH=$(EXE) libvoxel.so voxel.o noise.o
+SRCS = world.c voxel.c noise.c camera.c
+OBJS = $(SRCS:.c=.o)
+TRASH=$(EXE) $(OBJS) libvoxel.so
 
 .PHONY: clean install_raylib
 
-main: camera.o noise.o main.c libvoxel.so
+main: $(OBJS) libvoxel.so main.c
 	$(CC) $(CFLAGS) -o $(EXE) main.c -L. noise.o camera.o \
 	-lvoxel $(RAYLIB_STATIC_LIB) -lGL -lm -lpthread -ldl -lrt -lX11 -Wl,-rpath,.
 
 libvoxel.so: voxel.o
 	$(CC) -shared -o libvoxel.so voxel.o
 
-world.o: world.c
-	$(CC) $(CFLAGS) -c world.c -I$(RAYLIB_PATH)/src
-
-voxel.o: voxel.c
-	$(CC) $(CFLAGS) -c voxel.c -I$(RAYLIB_PATH)/src
-
-noise.o: noise.c
-	$(CC) $(CFLAGS) -c noise.c -I$(RAYLIB_PATH)/src
-
-camera.o: camera.c
-	$(CC) $(CFLAGS) -c camera.c -I$(RAYLIB_PATH)/src
+$(OBJS): %.o: %.c
+	$(CC) $(CFLAGS) -c $< -I$(RAYLIB_PATH)/src
 
 install_raylib:
 	mkdir -p raylib/build

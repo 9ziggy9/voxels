@@ -35,8 +35,8 @@ void voxel_destroy_scape(VoxelScape *);
 void voxel_cull_occluded(VoxelScape *);
 
 Mesh voxel_terrain_mesh_from_region(VoxelScape *, int, int, int, int);
-Model voxel_terrain_model_from_region(VoxelScape *, int, int, int, int);
-TerrainView voxel_load_terrain_models(VoxelScape *vs);
+Model voxel_terrain_model_from_region(VoxelScape *, Shader, int, int, int, int);
+TerrainView voxel_load_terrain_models(VoxelScape *, Shader);
 void voxel_unload_terrain_models(TerrainView *tv);
 
 #endif //VOXEL_H_

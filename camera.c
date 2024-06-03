@@ -10,6 +10,16 @@ Camera3D cam_init_scene(Vector3 *player_position) {
   };
 }
 
+Camera3D cam_init_sun(void) {
+  return (Camera3D) {
+    .position   = (Vector3){25.0f, 75.0f, 25.0f},
+    .target     = (Vector3){0.0f, 0.0f, 0.0f},
+    .up         = (Vector3){0.0f, 1.0f, 0.0f},
+    .fovy       = 60.0f,
+    .projection = CAMERA_PERSPECTIVE,
+  };
+}
+
 void cam_get_frustum(Camera3D cam, Frustum *fstm) {
   Matrix mv = MatrixLookAt(cam.position, cam.target, cam.up);
   Matrix mp = MatrixPerspective(cam.fovy * DEG2RAD,
@@ -30,26 +40,21 @@ void cam_get_frustum(Camera3D cam, Frustum *fstm) {
   fstm->left.distance = mvp.m3 + mvp.m7;
   fstm->left.normal = (Vector3) { mvp.m0 + mvp.m4, mvp.m1 + mvp.m5,
                                   mvp.m2 + mvp.m6 };
-
   // right
   fstm->right.distance = mvp.m3 - mvp.m7;
   fstm->right.normal = (Vector3) { mvp.m0 - mvp.m4, mvp.m1 - mvp.m5,
                                    mvp.m2 - mvp.m6 };
-
   // bottom
   fstm->bottom.distance = mvp.m3 + mvp.m12;
   fstm->bottom.normal = (Vector3) { mvp.m0 + mvp.m1, mvp.m4 + mvp.m5,
                                     mvp.m8 + mvp.m9 };
-
   // top
   fstm->top.distance = mvp.m3 - mvp.m12;
   fstm->top.normal = (Vector3) { mvp.m0 - mvp.m1, mvp.m4 - mvp.m5,
                                  mvp.m8 - mvp.m9 };
-
   // near
   fstm->near.distance = mvp.m11;
   fstm->near.normal = (Vector3) { mvp.m8, mvp.m9, mvp.m10 };
-
   // far
   fstm->far.distance = mvp.m3 - mvp.m11;
   fstm->far.normal = (Vector3) { mvp.m0 - mvp.m8, mvp.m1 - mvp.m9,

@@ -8,6 +8,7 @@
 #include "config.h"
 #include "voxel.h"
 #include "camera.h"
+#include "world.h"
 
 #define MEM_MAX_CAP (1024 * 1024 * 500)
 #define LOAD_PROC_INFO
@@ -21,16 +22,14 @@
   } while(0)                                      \
 
 void exit_clean_procedure(int, void *);
-void poll_key_presses(Camera3D *, Vector3 *);
+void poll_key_presses(CamView *, Vector3 *, Shader);
 void poll_mouse_movement(Camera3D *);
 
-#define SZ_WORLD (LAST_X_CHUNK * CHUNK_X) * (LAST_Z_CHUNK * CHUNK_Z)
 #define SZ_CHECKER 2
 
-#define WORLD_ORIGIN ((Vector3){0, 0, 0})
-int SEED = 9001;
-
 Model mdl_gen_checkerboard(void);
+
+float shade_ambient_val = 0.125f;
 
 int main(void) {
   on_exit(exit_clean_procedure, NULL);
@@ -47,22 +46,32 @@ int main(void) {
   Vector3 player_position = {0};
   Vector3 world_position = WORLD_ORIGIN;
 
-  Frustum fstm;
-  Camera3D cam_scene = cam_init_scene(&player_position);
-  cam_get_frustum(cam_scene, &fstm);
+  CamView cam = {
+    .scene = cam_init_scene(&player_position),
+    .sun   = cam_init_sun()
+  };
+  cam.current = &cam.scene;
+
+  Shader shade_sun = LoadShader("shaders/sun.vs", "shaders/sun.fs");
+  SetShaderValue(shade_sun, GetShaderLocation(shade_sun, "sunPos"),
+                 &cam.sun.position, SHADER_UNIFORM_VEC3);
+  SetShaderValue(shade_sun, GetShaderLocation(shade_sun, "sunTargPos"),
+                  &cam.sun.target, SHADER_UNIFORM_FLOAT);
+  SetShaderValue(shade_sun, GetShaderLocation(shade_sun, "ambient"),
+                  &shade_ambient_val, SHADER_UNIFORM_FLOAT);
 
   VoxelScape vxl_scape = voxel_gen_perlin_scape(LAST_X_CHUNK * CHUNK_X,
                                                 LAST_Z_CHUNK * CHUNK_Z,
-                                                CHUNK_Y, SEED, fd_perlin);
+                                                CHUNK_Y, WORLD_SEED, fd_perlin);
   voxel_cull_occluded(&vxl_scape);
-  TerrainView terrain = voxel_load_terrain_models(&vxl_scape);
+  TerrainView terrain = voxel_load_terrain_models(&vxl_scape, shade_sun);
 
   while(!WindowShouldClose()) {
-    poll_key_presses(&cam_scene, &world_position);
-    poll_mouse_movement(&cam_scene);
+    poll_key_presses(&cam, &world_position, shade_sun);
+    poll_mouse_movement(cam.current);
     BeginDrawing();
       ClearBackground(BLACK);
-      BeginMode3D(cam_scene);
+      BeginMode3D(*cam.current);
         DrawModel(mdl_cb, world_position, 1.0f, WHITE);
         for (uint32_t n = 0; n < terrain.count; n++) {
           DrawModel(terrain.views[n], world_position, 1.0f, WHITE);
@@ -70,7 +79,6 @@ int main(void) {
       EndMode3D();
       PROC_INFO_DRAW(PROC_INFO_FLAG_ALL);
     EndDrawing();
-
   }
 
   voxel_unload_terrain_models(&terrain);
@@ -85,7 +93,7 @@ void poll_mouse_movement(Camera3D *cam) {
   cam->fovy = Clamp(cam->fovy, 2.0f, 180.0f);
 }
 
-void poll_key_presses(Camera3D *cam, Vector3 *pos) {
+void poll_key_presses(CamView *cv, Vector3 *pos, Shader sh) {
 #define SPEED (0.25f * SCREEN_WIDTH / SCREEN_HEIGHT)
   Vector3 dp = {0};
   if (IsKeyDown(KEY_W)) {dp.z += 1; dp.x += 1;}
@@ -93,20 +101,30 @@ void poll_key_presses(Camera3D *cam, Vector3 *pos) {
   if (IsKeyDown(KEY_S)) {dp.z -= 1; dp.x -= 1;}
   if (IsKeyDown(KEY_D)) {dp.x -= 1; dp.z += 1;}
 
-  if (IsKeyDown(KEY_N)) {
-    int *s_ptr = &SEED;
-    *s_ptr = GetRandomValue(420, 69420);
-  }
-
   if (dp.x != 0 || dp.z != 0) {
     *pos = Vector3Add(*pos, Vector3Scale(Vector3Normalize(dp), SPEED));
   }
 
-  if (IsKeyDown(KEY_UP))   cam->position.y -= 1.5f;
-  if (IsKeyDown(KEY_DOWN)) cam->position.y += 1.5f;
+  if (IsKeyDown(KEY_UP))   cv->current->position.y -= 1.5f;
+  if (IsKeyDown(KEY_DOWN)) cv->current->position.y += 1.5f;
+
+  if (IsKeyPressed(KEY_C)) cv->current = (cv->current == &cv->scene)
+                             ? &cv->sun
+                             : &cv->scene;
 
   if (IsKeyPressed(KEY_ESCAPE)) CLOSE_WITH(EXIT_SUCCESS, "Exit key pressed.");
   if (IsKeyPressed(KEY_Q))      CLOSE_WITH(EXIT_SUCCESS, "Exit key pressed.");
+
+  if (IsKeyPressed(KEY_K)) {
+    shade_ambient_val += 0.05f;
+    SetShaderValue(sh, GetShaderLocation(sh, "ambient"),
+                   &shade_ambient_val, SHADER_UNIFORM_FLOAT);
+  }
+  if (IsKeyPressed(KEY_J)) {
+    shade_ambient_val -= 0.05f;
+    SetShaderValue(sh, GetShaderLocation(sh, "ambient"),
+                   &shade_ambient_val, SHADER_UNIFORM_FLOAT);
+  }
 }
 
 Model mdl_gen_checkerboard(void) {

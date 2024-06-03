@@ -23,6 +23,16 @@ static float VXL_VERT_LOOKUP[VXL_NUM_FACES][FACE_NUM_VERTS][TRI_NUM_VERTS] =
      {0.5f, 1.0f, -0.5f}, {-0.5f, 1.0f, -0.5f}}
   };
 
+static float VXL_NORM_LOOKUP[VXL_NUM_FACES][FACE_NUM_VERTS][TRI_NUM_VERTS] =
+  {
+    {{0.0f, 0.0f, 1.0f}, {0.0f, 0.0f, 1.0f},   // front
+     {0.0f, 0.0f, 1.0f}, {0.0f, 0.0f, 1.0f}},
+    {{1.0f, 0.0f, 0.0f}, {1.0f, 0.0f, 0.0f},  // right
+     {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f, 0.0f}},
+    {{0.0f, 1.0f, 0.0f}, {0.0f, 1.0f, 0.0f},  // top
+     {0.0f, 1.0f, 0.0f}, {0.0f, 1.0f, 0.0f}}
+  };
+
 #define VXL_CLR_NONE   {255, 0, 0, 255}
 #define VXL_CLR_DBROWN {51, 13, 16, 255}
 #define VXL_CLR_BROWN  {71, 47, 25, 255}
@@ -50,7 +60,7 @@ VoxelScape voxel_gen_perlin_scape(int X, int Z, int Y, int seed, fade_fn fn) {
         vxls[VXL_ACCESS(x, lvl, z, X, Z)] = (Voxel) {
           .occ   = false,
           .type  = (lvl < height)
-                      ? (lvl < 2)
+                      ? (lvl < 3)
                         ? VXL_WATER
                         : VXL_GRASS
                       : VXL_EMPTY,
@@ -96,14 +106,11 @@ void voxel_cull_occluded(VoxelScape *vs) {
   printf("\nOCCLUSION: CULLED %d VOXEL(s) in TOTAL\n\n", occ_count);
 }
 
-Mesh
-voxel_terrain_mesh_from_region(VoxelScape *vs, int ix0, int ixE,
-                                               int iz0, int izE)
+Mesh voxel_terrain_mesh_from_region(VoxelScape *vs,
+                                    int ix0, int ixE,
+                                    int iz0, int izE)
 {
-  ix0 *= CHUNK_X;
-  iz0 *= CHUNK_Z;
-  ixE *= CHUNK_X;
-  izE *= CHUNK_Z;
+  ix0 *= CHUNK_X; iz0 *= CHUNK_Z; ixE *= CHUNK_X; izE *= CHUNK_Z;
 
   int num_vertices = 0;
   int num_indices = 0;
@@ -124,6 +131,7 @@ voxel_terrain_mesh_from_region(VoxelScape *vs, int ix0, int ixE,
   mesh.vertexCount = num_vertices;
   mesh.triangleCount = num_indices / TRI_NUM_IDXS;
   mesh.vertices = (float *)    MemAlloc(num_vertices * 3 * sizeof(float));
+  mesh.normals  = (float *)    MemAlloc(num_vertices * 3 * sizeof(float));
   mesh.indices  = (uint16_t *) MemAlloc(num_indices * sizeof(uint16_t));
   mesh.colors   = (uint8_t *)  MemAlloc(num_vertices * 4 * sizeof(uint8_t));
 
@@ -140,10 +148,14 @@ voxel_terrain_mesh_from_region(VoxelScape *vs, int ix0, int ixE,
               int idx = vertex_idx * 3;
               mesh.vertices[idx]
                 = v.coord.x + SZ_VOXEL * VXL_VERT_LOOKUP[face][vert][0];
+              mesh.normals[idx]     = VXL_NORM_LOOKUP[face][vert][0];
               mesh.vertices[idx + 1]
                 = v.coord.y + SZ_VOXEL * VXL_VERT_LOOKUP[face][vert][1];
+              mesh.normals[idx + 1] = VXL_NORM_LOOKUP[face][vert][1];
               mesh.vertices[idx + 2]
                 = v.coord.z + SZ_VOXEL * VXL_VERT_LOOKUP[face][vert][2];
+              mesh.normals[idx + 2] = VXL_NORM_LOOKUP[face][vert][2];
+
               idx = vertex_idx * 4;
               mesh.colors[idx]     = color.r;
               mesh.colors[idx + 1] = color.g;
@@ -164,14 +176,16 @@ voxel_terrain_mesh_from_region(VoxelScape *vs, int ix0, int ixE,
   return mesh;
 }
 
-Model voxel_terrain_model_from_region(VoxelScape *vs, int ix0, int ixE,
-                                                      int iz0, int izE)
+Model voxel_terrain_model_from_region(VoxelScape *vs, Shader shader,
+                                      int ix0, int ixE, int iz0, int izE)
 {
-  return
-    LoadModelFromMesh(voxel_terrain_mesh_from_region(vs, ix0, ixE, iz0, izE));
+  Model model
+    = LoadModelFromMesh(voxel_terrain_mesh_from_region(vs, ix0, ixE, iz0, izE));
+  model.materials[0].shader = shader;
+  return model;
 }
 
-TerrainView voxel_load_terrain_models(VoxelScape *vs) {
+TerrainView voxel_load_terrain_models(VoxelScape *vs, Shader shader) {
   int num_models_x = vs->X / CHUNK_X;
   int num_models_z = vs->Z / CHUNK_Z;
 
@@ -182,7 +196,7 @@ TerrainView voxel_load_terrain_models(VoxelScape *vs) {
   for (int iz = 0; iz < num_models_z; iz++) {
     for (int ix = 0; ix < num_models_x; ix++) {
       views[model_idx++] =
-        voxel_terrain_model_from_region(vs, ix, ix + 1, iz, iz + 1);
+        voxel_terrain_model_from_region(vs, shader, ix, ix + 1, iz, iz + 1);
     }
   }
 
