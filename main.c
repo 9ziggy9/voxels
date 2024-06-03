@@ -112,19 +112,29 @@ void poll_key_presses(CamView *cv, Vector3 *pos, Shader sh) {
   if (IsKeyPressed(KEY_ESCAPE)) CLOSE_WITH(EXIT_SUCCESS, "Exit key pressed.");
   if (IsKeyPressed(KEY_Q))      CLOSE_WITH(EXIT_SUCCESS, "Exit key pressed.");
 
-  // also need to update target
-  static const Vector3 dsun = (Vector3){1.0f, 0.0f, 1.0f};
-  static const float dtheta = 5.0f;
+    // also need to update target
+  static const float radius = 400.0f; // adjust this to your world size
+  static const float center_x = 0.0f; // adjust this to your world center
+  static const float center_z = 0.0f; // adjust this to your world center
+  static const float dtheta = 0.01f; // adjust this to control the speed of the sun
+
+  static float theta = 0.0f;
+
   if (IsKeyDown(KEY_K)) {
-    cv->sun.position = Vector3Add(cv->sun.position, dsun);
-    SetShaderValue(sh, GetShaderLocation(sh, "sunPos"),
-                   &cv->sun.position, SHADER_UNIFORM_VEC3);
+      theta += dtheta;
+      cv->sun.position.x = center_x + radius * cos(theta);
+      cv->sun.position.z = center_z + radius * sin(theta);
+      SetShaderValue(sh, GetShaderLocation(sh, "sunPos"),
+                    &cv->sun.position, SHADER_UNIFORM_VEC3);
   }
   if (IsKeyDown(KEY_J)) {
-    cv->sun.position = Vector3Subtract(cv->sun.position, dsun);
-    SetShaderValue(sh, GetShaderLocation(sh, "sunPos"),
-                   &cv->sun.position, SHADER_UNIFORM_VEC3);
+      theta -= dtheta;
+      cv->sun.position.x = center_x + radius * cos(theta);
+      cv->sun.position.z = center_z + radius * sin(theta);
+      SetShaderValue(sh, GetShaderLocation(sh, "sunPos"),
+                    &cv->sun.position, SHADER_UNIFORM_VEC3);
   }
+
   if (IsKeyDown(KEY_L)) {
     cv->light_cone += dtheta;
     SetShaderValue(sh, GetShaderLocation(sh, "coneAngleDegs"),
