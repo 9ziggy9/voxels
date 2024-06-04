@@ -47,7 +47,7 @@ int main(void) {
   CamView cam = {
     .scene      = cam_init_scene(&player_position),
     .sun        = cam_init_sun(),
-    .light_cone = 90.0f,
+    .light_cone = 160.0f,
   };
   cam.current = &cam.scene;
 
@@ -69,7 +69,7 @@ int main(void) {
     BeginDrawing();
       ClearBackground(BLACK);
       BeginMode3D(*cam.current);
-        DrawModel(mdl_cb, world_position, 1.0f, WHITE);
+        /* DrawModel(mdl_cb, world_position, 1.0f, WHITE); */
         for (uint32_t n = 0; n < terrain.count; n++) {
           DrawModel(terrain.views[n], world_position, 1.0f, WHITE);
         }
@@ -112,38 +112,36 @@ void poll_key_presses(CamView *cv, Vector3 *pos, Shader sh) {
   if (IsKeyPressed(KEY_ESCAPE)) CLOSE_WITH(EXIT_SUCCESS, "Exit key pressed.");
   if (IsKeyPressed(KEY_Q))      CLOSE_WITH(EXIT_SUCCESS, "Exit key pressed.");
 
-    // also need to update target
-  static const float radius = 400.0f; // adjust this to your world size
-  static const float center_x = 0.0f; // adjust this to your world center
-  static const float center_z = 0.0f; // adjust this to your world center
-  static const float dtheta = 0.01f; // adjust this to control the speed of the sun
 
+  static const float orbit_vel = 0.1f;
+  static const float orbit_rad = SUN_DISTANCE;
   static float theta = 0.0f;
 
   if (IsKeyDown(KEY_K)) {
-      theta += dtheta;
-      cv->sun.position.x = center_x + radius * cos(theta);
-      cv->sun.position.z = center_z + radius * sin(theta);
-      SetShaderValue(sh, GetShaderLocation(sh, "sunPos"),
-                    &cv->sun.position, SHADER_UNIFORM_VEC3);
+    cv->sun.up.y = (cv->sun.position.x <= 0 && cv->sun.position.z <= 0)
+      ? -1 : 1;
+    float dtheta = (cv->sun.position.y < 0) // TODO: calculate something better
+      ? 1.0f  * orbit_vel
+      : 0.125f * orbit_vel;
+    theta += dtheta;
+    cv->sun.position.x = orbit_rad * cos(theta) * sqrt(2) / 2;
+    cv->sun.position.y = orbit_rad * sin(theta);
+    cv->sun.position.z = orbit_rad * cos(theta) * sqrt(2) / 2;
+    SetShaderValue(sh, GetShaderLocation(sh, "sunPos"),
+                  &cv->sun.position, SHADER_UNIFORM_VEC3);
   }
   if (IsKeyDown(KEY_J)) {
-      theta -= dtheta;
-      cv->sun.position.x = center_x + radius * cos(theta);
-      cv->sun.position.z = center_z + radius * sin(theta);
-      SetShaderValue(sh, GetShaderLocation(sh, "sunPos"),
-                    &cv->sun.position, SHADER_UNIFORM_VEC3);
-  }
-
-  if (IsKeyDown(KEY_L)) {
-    cv->light_cone += dtheta;
-    SetShaderValue(sh, GetShaderLocation(sh, "coneAngleDegs"),
-                   &cv->light_cone, SHADER_UNIFORM_FLOAT);
-  }
-  if (IsKeyDown(KEY_H)) {
-    cv->light_cone -= dtheta;
-    SetShaderValue(sh, GetShaderLocation(sh, "coneAngleDegs"),
-                   &cv->light_cone, SHADER_UNIFORM_FLOAT);
+    cv->sun.up.y = (cv->sun.position.x <= 0 && cv->sun.position.z <= 0)
+      ? -1 : 1;
+    float dtheta = (cv->sun.position.y < 0)
+      ? 2.0f * orbit_vel
+      : orbit_vel;
+    theta -= dtheta;
+    cv->sun.position.x = orbit_rad * cos(theta) * sqrt(2) / 2;
+    cv->sun.position.y = orbit_rad * sin(theta);
+    cv->sun.position.z = orbit_rad * cos(theta) * sqrt(2) / 2;
+    SetShaderValue(sh, GetShaderLocation(sh, "sunPos"),
+                  &cv->sun.position, SHADER_UNIFORM_VEC3);
   }
 }
 

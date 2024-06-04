@@ -12,7 +12,7 @@ Camera3D cam_init_scene(Vector3 *player_position) {
 
 Camera3D cam_init_sun(void) {
   return (Camera3D) {
-    .position   = (Vector3){200.0f, 100.0f, 200.0f},
+    .position   = (Vector3){SUN_DISTANCE, 0.0f, -SUN_DISTANCE},
     .target     = (Vector3){0.0f, 0.0f, 0.0f},
     .up         = (Vector3){0.0f, 1.0f, 0.0f},
     .fovy       = 60.0f,

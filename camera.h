@@ -12,11 +12,13 @@ typedef struct {
     Plane near; Plane far;
 } Frustum;
 
+#define SUN_DISTANCE 2 * LAST_X_CHUNK * CHUNK_X
+
 typedef struct {
   Camera3D *current;
   Camera3D scene;
   Camera3D sun;
-  float    light_cone;
+  float light_cone;
 } CamView;
 
 #define CAM_ORIGIN ((Vector3){ LAST_X_CHUNK * CHUNK_X * 0.66,  \
