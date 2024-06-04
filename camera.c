@@ -29,8 +29,7 @@ void cam_get_frustum(Camera3D cam, Frustum *fstm) {
   if (cam.projection == CAMERA_ORTHOGRAPHIC) {
     float width = 20.0f;
     float height = 20.0f * (float) GetScreenHeight() / GetScreenWidth();
-    mp = MatrixOrtho(-width / 2, width / 2,
-                     -height / 2, height / 2,
+    mp = MatrixOrtho(-width / 2, width / 2, -height / 2, height / 2,
                      0.01f, 1000.0f);
   }
 

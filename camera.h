@@ -12,12 +12,13 @@ typedef struct {
     Plane near; Plane far;
 } Frustum;
 
-#define SUN_DISTANCE 2 * LAST_X_CHUNK * CHUNK_X
+#define SUN_DISTANCE 1.5f * LAST_X_CHUNK * CHUNK_X
 
 typedef struct {
   Camera3D *current;
   Camera3D scene;
   Camera3D sun;
+  Camera3D god;
   float light_cone;
 } CamView;
 

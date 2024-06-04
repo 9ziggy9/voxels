@@ -39,8 +39,6 @@ int main(void) {
   SetTargetFPS(TARGET_FPS);
   SetExitKey(KEY_NULL);
 
-  Model mdl_cb = mdl_gen_checkerboard();
-
   Vector3 player_position = {0};
   Vector3 world_position = WORLD_ORIGIN;
 
@@ -69,9 +67,8 @@ int main(void) {
     BeginDrawing();
       ClearBackground(BLACK);
       BeginMode3D(*cam.current);
-        /* DrawModel(mdl_cb, world_position, 1.0f, WHITE); */
         for (uint32_t n = 0; n < terrain.count; n++) {
-          DrawModel(terrain.views[n], world_position, 1.0f, WHITE);
+          DrawModel(terrain.views[n], world_position, 0.5f, WHITE);
         }
       EndMode3D();
       PROC_INFO_DRAW(PROC_INFO_FLAG_ALL);
@@ -105,9 +102,15 @@ void poll_key_presses(CamView *cv, Vector3 *pos, Shader sh) {
   if (IsKeyDown(KEY_UP))   cv->current->position.y -= 1.5f;
   if (IsKeyDown(KEY_DOWN)) cv->current->position.y += 1.5f;
 
-  if (IsKeyPressed(KEY_C)) cv->current = (cv->current == &cv->scene)
-                             ? &cv->sun
-                             : &cv->scene;
+  static size_t cam_idx = 0;
+  if (IsKeyPressed(KEY_C)) {
+    cam_idx = (cam_idx + 1) % 2;
+    switch (cam_idx) {
+    case 0: cv->current = &cv->scene; break;
+    case 1: cv->current = &cv->sun;   break;
+    default: CLOSE_WITH(EXIT_FAILURE, "huh?");
+    }
+  }
 
   if (IsKeyPressed(KEY_ESCAPE)) CLOSE_WITH(EXIT_SUCCESS, "Exit key pressed.");
   if (IsKeyPressed(KEY_Q))      CLOSE_WITH(EXIT_SUCCESS, "Exit key pressed.");
@@ -134,8 +137,8 @@ void poll_key_presses(CamView *cv, Vector3 *pos, Shader sh) {
     cv->sun.up.y = (cv->sun.position.x <= 0 && cv->sun.position.z <= 0)
       ? -1 : 1;
     float dtheta = (cv->sun.position.y < 0)
-      ? 2.0f * orbit_vel
-      : orbit_vel;
+      ? 1.0f  * orbit_vel
+      : 0.125f * orbit_vel;
     theta -= dtheta;
     cv->sun.position.x = orbit_rad * cos(theta) * sqrt(2) / 2;
     cv->sun.position.y = orbit_rad * sin(theta);
