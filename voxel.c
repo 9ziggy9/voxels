@@ -1,13 +1,6 @@
 #include "voxel.h"
 #include <raymath.h>
 #include <stdio.h>
-#include <assert.h>
-
-#define VXL_NUM_FACES  3
-#define FACE_NUM_VERTS 4
-#define TRI_NUM_VERTS  3
-#define FACE_NUM_TRIS  2
-#define TRI_NUM_IDXS   3
 
 #define VXL_ACCESS(x, y, z, XM, ZM) ((x) + ((z) * (XM)) + ((y) * (XM) * (ZM)))
 #define VXL_EDGE(x, y, z, XM, YM, ZM) \
@@ -25,7 +18,7 @@ static float VXL_VERT_LOOKUP[VXL_NUM_FACES][FACE_NUM_VERTS][TRI_NUM_VERTS] =
 
 static float VXL_NORM_LOOKUP[VXL_NUM_FACES][FACE_NUM_VERTS][TRI_NUM_VERTS] =
   {
-    {{0.0f, 0.0f, 1.0f}, {0.0f, 0.0f, 1.0f},   // front
+    {{0.0f, 0.0f, 1.0f}, {0.0f, 0.0f, 1.0f},  // front
      {0.0f, 0.0f, 1.0f}, {0.0f, 0.0f, 1.0f}},
     {{1.0f, 0.0f, 0.0f}, {1.0f, 0.0f, 0.0f},  // right
      {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f, 0.0f}},
@@ -107,6 +100,7 @@ void voxel_cull_occluded(VoxelScape *vs) {
 }
 
 Mesh voxel_terrain_mesh_from_region(VoxelScape *vs,
+                                    struct atlas atlas,
                                     int ix0, int ixE,
                                     int iz0, int izE)
 {
@@ -130,10 +124,11 @@ Mesh voxel_terrain_mesh_from_region(VoxelScape *vs,
   Mesh mesh = { 0 };
   mesh.vertexCount = num_vertices;
   mesh.triangleCount = num_indices / TRI_NUM_IDXS;
-  mesh.vertices = (float *)    MemAlloc(num_vertices * 3 * sizeof(float));
-  mesh.normals  = (float *)    MemAlloc(num_vertices * 3 * sizeof(float));
-  mesh.indices  = (uint16_t *) MemAlloc(num_indices * sizeof(uint16_t));
-  mesh.colors   = (uint8_t *)  MemAlloc(num_vertices * 4 * sizeof(uint8_t));
+  mesh.vertices  = (float *)    MemAlloc(num_vertices * 3 * sizeof(float));
+  mesh.normals   = (float *)    MemAlloc(num_vertices * 3 * sizeof(float));
+  mesh.indices   = (uint16_t *) MemAlloc(num_indices * sizeof(uint16_t));
+  mesh.colors    = (uint8_t *)  MemAlloc(num_vertices * 4 * sizeof(uint8_t));
+  mesh.texcoords = (float *)    MemAlloc(num_vertices * 2 * sizeof(float));
 
   int vertex_idx = 0; int iidx = 0; int el = 0;
   for (int iz = iz0; iz < izE; iz++) {
@@ -144,6 +139,12 @@ Mesh voxel_terrain_mesh_from_region(VoxelScape *vs,
           Color *colors = VXL_CLR_LOOKUP[v.type];
           for (int face = 0; face < VXL_NUM_FACES; face++) {
             Color color = colors[face];
+            Rectangle sprite;
+            switch (face) {
+            case 0: sprite = atlas_get_sprite(atlas, SPRITE_GRASS_SIDE); break;
+            case 1: sprite = atlas_get_sprite(atlas, SPRITE_GRASS_SIDE); break;
+            case 2: sprite = atlas_get_sprite(atlas, SPRITE_GRASS_TOP);  break;
+            }
             for (int vert = 0; vert < FACE_NUM_VERTS; vert++) {
               int idx = vertex_idx * 3;
               mesh.vertices[idx]
@@ -161,6 +162,30 @@ Mesh voxel_terrain_mesh_from_region(VoxelScape *vs,
               mesh.colors[idx + 1] = color.g;
               mesh.colors[idx + 2] = color.b;
               mesh.colors[idx + 3] = color.a;
+
+              idx = vertex_idx * 2;
+              float u, v;
+              switch (vert) {
+                case 0:
+                  u = sprite.x / atlas.texture.width;
+                  v = sprite.y / atlas.texture.height;
+                  break;
+                case 1:
+                  u = (sprite.x + sprite.width) / atlas.texture.width;
+                  v = sprite.y / atlas.texture.height;
+                  break;
+                case 2:
+                  u = (sprite.x + sprite.width) / atlas.texture.width;
+                  v = (sprite.y + sprite.height) / atlas.texture.height;
+                  break;
+                case 3:
+                  u = sprite.x / atlas.texture.width;
+                  v = (sprite.y + sprite.height) / atlas.texture.height;
+                  break;
+              }
+              mesh.texcoords[idx] = u;
+              mesh.texcoords[idx + 1] = v;
+
               vertex_idx++;
             }
 #define IDX(N, I)  mesh.indices[N] = I
@@ -177,15 +202,21 @@ Mesh voxel_terrain_mesh_from_region(VoxelScape *vs,
 }
 
 Model voxel_terrain_model_from_region(VoxelScape *vs, Shader shader,
-                                      int ix0, int ixE, int iz0, int izE)
+                                      struct atlas atlas,
+                                      int ix0, int ixE,
+                                      int iz0, int izE)
 {
   Model model
-    = LoadModelFromMesh(voxel_terrain_mesh_from_region(vs, ix0, ixE, iz0, izE));
+    = LoadModelFromMesh(voxel_terrain_mesh_from_region(vs, atlas,
+                                                       ix0, ixE, iz0, izE));
   model.materials[0].shader = shader;
+  SetMaterialTexture(&model.materials[0], MATERIAL_MAP_DIFFUSE, atlas.texture);
   return model;
 }
 
-TerrainView voxel_load_terrain_models(VoxelScape *vs, Shader shader) {
+TerrainView voxel_load_terrain_models(VoxelScape *vs, Shader shader,
+                                      struct atlas atlas)
+{
   int num_models_x = vs->X / CHUNK_X;
   int num_models_z = vs->Z / CHUNK_Z;
 
@@ -196,7 +227,8 @@ TerrainView voxel_load_terrain_models(VoxelScape *vs, Shader shader) {
   for (int iz = 0; iz < num_models_z; iz++) {
     for (int ix = 0; ix < num_models_x; ix++) {
       views[model_idx++] =
-        voxel_terrain_model_from_region(vs, shader, ix, ix + 1, iz, iz + 1);
+        voxel_terrain_model_from_region(vs, shader, atlas,
+                                        ix, ix + 1, iz, iz + 1);
     }
   }
 
@@ -204,9 +236,7 @@ TerrainView voxel_load_terrain_models(VoxelScape *vs, Shader shader) {
 }
 
 void voxel_unload_terrain_models(TerrainView *tv) {
-  for (uint32_t n = 0; n < tv->count; n++) {
-    UnloadModel(tv->views[n]);
-  }
+  for (uint32_t n = 0; n < tv->count; n++) UnloadModel(tv->views[n]);
   MemFree(tv->views);
 }
 
@@ -286,11 +316,6 @@ static Mesh voxel_generate_mesh_from_colors(Color *colors) {
   mesh.vertices = (float *)    MemAlloc(3*mesh.vertexCount*sizeof(float));
   mesh.indices  = (uint16_t *) MemAlloc(3*mesh.triangleCount*sizeof(uint16_t));
   mesh.colors   = (uint8_t *)  MemAlloc(4*mesh.vertexCount*sizeof(uint8_t));
-
-  /* NOTE:
-     this could be refactorable from lookup table... but why?
-     headache inducing. */
-
   // four to a face
   VERT(0, -0.5f, 0.0f, 0.5f);  VERT(3, 0.5f, 0.0f, 0.5f);
   VERT(6, 0.5f, 1.0f, 0.5f);   VERT(9, -0.5f, 1.0f, 0.5f);

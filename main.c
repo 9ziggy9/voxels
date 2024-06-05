@@ -9,6 +9,7 @@
 #include "voxel.h"
 #include "camera.h"
 #include "world.h"
+#include "texture.h"
 
 #define MEM_MAX_CAP (1024 * 1024 * 500)
 #define LOAD_PROC_INFO
@@ -34,7 +35,6 @@ int main(void) {
   PROC_INFO_BOOTSTRAP();
   PROC_INFO_CAP_MEM(MEM_MAX_CAP);
 
-  SetConfigFlags(FLAG_MSAA_4X_HINT);
   InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, TITLE);
   SetTargetFPS(TARGET_FPS);
   SetExitKey(KEY_NULL);
@@ -55,11 +55,13 @@ int main(void) {
   SetShaderValue(shade_sun, GetShaderLocation(shade_sun, "coneAngleDegs"),
                  &cam.light_cone, SHADER_UNIFORM_FLOAT);
 
+  struct atlas atlas = atlas_load("./assets/blockatlas.png", 16);
+
   VoxelScape vxl_scape = voxel_gen_perlin_scape(LAST_X_CHUNK * CHUNK_X,
                                                 LAST_Z_CHUNK * CHUNK_Z,
                                                 CHUNK_Y, WORLD_SEED, fd_perlin);
   voxel_cull_occluded(&vxl_scape);
-  TerrainView terrain = voxel_load_terrain_models(&vxl_scape, shade_sun);
+  TerrainView terrain = voxel_load_terrain_models(&vxl_scape, shade_sun, atlas);
 
   while(!WindowShouldClose()) {
     poll_key_presses(&cam, &world_position, shade_sun);

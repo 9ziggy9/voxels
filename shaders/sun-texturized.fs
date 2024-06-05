@@ -26,7 +26,7 @@ void main() {
     vec3(1.0, 1.0, 1.0),
     vec3(0.7, 0.7, 0.2),
     vec3(1.0, 0.6, 0.2),
-    vec3(0.1, 0.1, 0.8)
+    vec3(0.2, 0.2, 0.5)
   );
   
   float factor = (intensity - 0.1) / 0.7;
@@ -41,7 +41,6 @@ void main() {
   }
   
   vec4 textureColor = texture(texture0, fragTexCoord);
-  vec3 finalColor = mix(0.1 * textureColor.rgb, textureColor.rgb * colorTemp,
-                        intensity);
+  vec3 finalColor = textureColor.rgb * colorTemp * intensity;
   outColor = vec4(finalColor, textureColor.a);
 }
