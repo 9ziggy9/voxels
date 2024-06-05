@@ -6,6 +6,15 @@
 
 typedef float (*fade_fn)(float);
 
+struct perlin_spec {
+  int seed;
+  fade_fn fn;
+  int octaves;
+  float lacunarity;
+  float persistance;
+  float scale;
+};
+
 static inline float lerp(float t, float a, float b) { return a + t * (b - a); }
 
 static inline float fd_perlin(float t) {
@@ -19,6 +28,6 @@ static inline int hash(int x, int y, int seed) {
   return rand() % 100;
 }
 
-float perlin_noise(float, float, int, fade_fn);
+float perlin_compose(float x, float y, struct perlin_spec spec);
 
 #endif // NOISE_H_

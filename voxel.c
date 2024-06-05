@@ -41,19 +41,25 @@ static Color VXL_CLR_LOOKUP[VXL_NUM_TYPES][VXL_NUM_FACES] =
 VoxelScape voxel_gen_perlin_scape(int X, int Z, int Y, int seed, fade_fn fn) {
   VoxelScape vxl_scape = (VoxelScape){ .X = X, .Z = Z, .Y = Y };
   Voxel *vxls = MemAlloc(X * Z * Y * sizeof(Voxel));
-  float entrop = (float) LAST_X_CHUNK * LAST_Z_CHUNK / CHUNK_Y;
+
+  struct perlin_spec spec = {
+    .seed = seed, .fn = fn,
+    .lacunarity = 0.05,
+    .persistance = 1,
+    .octaves = 1,
+    .scale = 1,
+  };
+
   for (int z = 0; z < Z; z++) {
     for (int x = 0; x < X; x++) {
-      float noise = perlin_noise((float) x / entrop,
-                                 (float) z / entrop,
-                                 seed, fn);
+      float noise = perlin_compose((float) x, (float) z, spec);
       noise = (noise + 1.0f) / 2.0f;
       float height = noise * Y;
       for (int lvl = 0; lvl < Y; lvl++) {
         vxls[VXL_ACCESS(x, lvl, z, X, Z)] = (Voxel) {
           .occ   = false,
           .type  = (lvl < height)
-                      ? (lvl < 3)
+                      ? (lvl < 4)
                         ? VXL_WATER
                         : VXL_GRASS
                       : VXL_EMPTY,
@@ -140,11 +146,23 @@ Mesh voxel_terrain_mesh_from_region(VoxelScape *vs,
           for (int face = 0; face < VXL_NUM_FACES; face++) {
             Color color = colors[face];
             Rectangle sprite;
-            switch (face) {
-            case 0: sprite = atlas_get_sprite(atlas, SPRITE_GRASS_SIDE); break;
-            case 1: sprite = atlas_get_sprite(atlas, SPRITE_GRASS_SIDE); break;
-            case 2: sprite = atlas_get_sprite(atlas, SPRITE_GRASS_TOP);  break;
+
+#define ASSIGN_TEXS(s1, s2, s3) switch (face) {                \
+            case 0: sprite = atlas_get_sprite(atlas, s1); break;  \
+            case 1: sprite = atlas_get_sprite(atlas, s2); break;  \
+            case 2: sprite = atlas_get_sprite(atlas, s3); break;  \
+            default: break;} break;
+
+            switch (v.type) {
+            case VXL_GRASS: ASSIGN_TEXS(SPRITE_GRASS_SIDE,
+                                        SPRITE_GRASS_SIDE,
+                                        SPRITE_GRASS_TOP);
+            case VXL_WATER: ASSIGN_TEXS(SPRITE_WATER_SIDE,
+                                        SPRITE_WATER_SIDE,
+                                        SPRITE_WATER_SIDE);
+            default: break;
             }
+
             for (int vert = 0; vert < FACE_NUM_VERTS; vert++) {
               int idx = vertex_idx * 3;
               mesh.vertices[idx]

@@ -11,7 +11,7 @@ static float grad(int hash, float x, float y) {
   return u + v;
 }
 
-float perlin_noise(float x, float y, int seed, fade_fn fn) {
+static float perlin_noise(float x, float y, int seed, fade_fn fn) {
   int x0 = (int) floorf(x);
   int x1 = x0 + 1;
   int y0 = (int) floorf(y);
@@ -34,4 +34,20 @@ float perlin_noise(float x, float y, int seed, fade_fn fn) {
   float n_x1y0 = lerp(fn(sx), n2, n3);
 
   return lerp(fn(sy), n_x0y0, n_x1y0);
+}
+
+float perlin_compose(float x, float y, struct perlin_spec spec) {
+  float sum  = 0;
+  float freq = 1.0f;
+  float amp  = 1.0f;
+  float max  = 0;
+  while (spec.octaves-- >= 0) {
+    sum += amp * perlin_noise(x * freq / spec.scale,
+                              y * freq / spec.scale,
+                              spec.seed, spec.fn);
+    max  += amp;
+    amp  *= spec.persistance;
+    freq *= spec.lacunarity;
+  }
+  return sum / max;
 }
