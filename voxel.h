@@ -9,7 +9,7 @@
 #define SZ_VOXEL 1
 #define CHUNK_X  16
 #define CHUNK_Z  16
-#define CHUNK_Y  10
+#define CHUNK_Y  32
 
 #define LAST_X_CHUNK 20
 #define LAST_Z_CHUNK 20
@@ -20,11 +20,12 @@
 #define FACE_NUM_TRIS  2
 #define TRI_NUM_IDXS   3
 
-#define VXL_NUM_TYPES 3
+#define VXL_NUM_TYPES 4
 typedef enum {
   VXL_EMPTY,
   VXL_GRASS,
   VXL_WATER,
+  VXL_SAND,
 } vxl_t;
 
 typedef struct {

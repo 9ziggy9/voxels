@@ -17,7 +17,7 @@ void main() {
   vec3 lightDir   = normalize(sunPos - fragPos);
   float angle     = acos(dot(viewDir, lightDir));
 
-  float intensity = smoothstep(coneAngle, coneAngle * 0.4, angle) *
+  float intensity = smoothstep(coneAngle, coneAngle * 0.99, angle) *
                     max(dot(lightDir, vec3(0, 1, 0)), 0.0);
   
   intensity = max(intensity, 0.1);
@@ -25,8 +25,8 @@ void main() {
   vec3 colorTemps[4] = vec3[4](
     vec3(1.0, 1.0, 1.0),
     vec3(0.7, 0.7, 0.2),
-    vec3(1.0, 0.6, 0.2),
-    vec3(0.1, 0.1, 0.8)
+    vec3(1.0, 0.0, 0.0),
+    vec3(0.0, 0.0, 1.0)
   );
   
   float factor = (intensity - 0.1) / 0.7;

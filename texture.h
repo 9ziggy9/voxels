@@ -19,6 +19,8 @@ Rectangle atlas_get_sprite(struct atlas, int, int);
 #define SPRITE_GRASS_TOP  0,0
 #define SPRITE_GRASS_SIDE 1,0
 #define SPRITE_WATER_SIDE 2,0
+#define SPRITE_SAND_SIDE 3,0
+
 #define ATLAS_DRAW_SPRITE(S, P) _atlas_draw_sprite(atlas, S, P)
 
 

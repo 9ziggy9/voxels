@@ -44,10 +44,10 @@ VoxelScape voxel_gen_perlin_scape(int X, int Z, int Y, int seed, fade_fn fn) {
 
   struct perlin_spec spec = {
     .seed = seed, .fn = fn,
-    .lacunarity = 0.05,
+    .lacunarity = 0.75,
     .persistance = 1,
-    .octaves = 1,
-    .scale = 1,
+    .octaves = 4,
+    .scale = 16.0,
   };
 
   for (int z = 0; z < Z; z++) {
@@ -59,7 +59,7 @@ VoxelScape voxel_gen_perlin_scape(int X, int Z, int Y, int seed, fade_fn fn) {
         vxls[VXL_ACCESS(x, lvl, z, X, Z)] = (Voxel) {
           .occ   = false,
           .type  = (lvl < height)
-                      ? (lvl < 4)
+                      ? (lvl <= CHUNK_Y / 2)
                         ? VXL_WATER
                         : VXL_GRASS
                       : VXL_EMPTY,
@@ -142,9 +142,9 @@ Mesh voxel_terrain_mesh_from_region(VoxelScape *vs,
       for (int iy = 0; iy < vs->Y; iy++) {
         Voxel v = vs->vxls[VXL_ACCESS(ix, iy, iz, vs->X, vs->Z)];
         if (!v.occ) {
-          Color *colors = VXL_CLR_LOOKUP[v.type];
+          /* Color *colors = VXL_CLR_LOOKUP[v.type]; */
           for (int face = 0; face < VXL_NUM_FACES; face++) {
-            Color color = colors[face];
+            /* Color color = colors[face]; */
             Rectangle sprite;
 
 #define ASSIGN_TEXS(s1, s2, s3) switch (face) {                \
@@ -175,11 +175,11 @@ Mesh voxel_terrain_mesh_from_region(VoxelScape *vs,
                 = v.coord.z + SZ_VOXEL * VXL_VERT_LOOKUP[face][vert][2];
               mesh.normals[idx + 2] = VXL_NORM_LOOKUP[face][vert][2];
 
-              idx = vertex_idx * 4;
-              mesh.colors[idx]     = color.r;
-              mesh.colors[idx + 1] = color.g;
-              mesh.colors[idx + 2] = color.b;
-              mesh.colors[idx + 3] = color.a;
+              /* idx = vertex_idx * 4; */
+              /* mesh.colors[idx]     = color.r; */
+              /* mesh.colors[idx + 1] = color.g; */
+              /* mesh.colors[idx + 2] = color.b; */
+              /* mesh.colors[idx + 3] = color.a; */
 
               idx = vertex_idx * 2;
               float u, v;
